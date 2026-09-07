@@ -19,7 +19,7 @@ import {
   selectStudentById,
   updateStudent,
 } from '@/store/studentSlice';
-import { useAppDispatch, useAppSelector } from '@/store/store';
+import { useAppDispatch, useAppSelector, persistor } from '@/store/store';
 import {
   assignSeat,
   removeSeat,
@@ -63,7 +63,6 @@ export default function StudentFormScreen() {
   const [schoolId, setSchoolId] = useState('');
   const [routeId, setRouteId] = useState('');
   const [boardingStreet, setBoardingStreet] = useState('');
-  const [customStreet, setCustomStreet] = useState('');
   const [vehicleId, setVehicleId] = useState('');
   const [seatNumber, setSeatNumber] = useState<number | null>(null);
   const [photoUri, setPhotoUri] = useState<string | undefined>();
@@ -81,7 +80,6 @@ export default function StudentFormScreen() {
     setSchoolId(existing.schoolId);
     setRouteId(existing.routeId);
     setBoardingStreet(existing.boardingStreet);
-    setCustomStreet('');
     setVehicleId(existing.vehicleId);
     setSeatNumber(existing.seatNumber);
     setPhotoUri(existing.photoUri);
@@ -99,20 +97,7 @@ export default function StudentFormScreen() {
     vehicleId ? selectVehicleById(state, vehicleId) : undefined,
   );
 
-  useEffect(() => {
-    if (!existing || !selectedRoute) {
-      return;
-    }
-    if (selectedRoute.streetsCovered.includes(existing.boardingStreet)) {
-      setBoardingStreet(existing.boardingStreet);
-      setCustomStreet('');
-    } else if (existing.routeId === selectedRoute.id) {
-      setBoardingStreet('');
-      setCustomStreet(existing.boardingStreet);
-    }
-  }, [existing, selectedRoute]);
-
-  const resolvedStreet = customStreet.trim() || boardingStreet;
+  const streetName = boardingStreet.trim();
   const age = parsePositiveInt(ageInput);
 
   const canSubmit =
@@ -124,7 +109,7 @@ export default function StudentFormScreen() {
     grade.trim().length > 0 &&
     schoolId.length > 0 &&
     routeId.length > 0 &&
-    resolvedStreet.length > 0 &&
+    streetName.length > 0 &&
     vehicleId.length > 0 &&
     seatNumber !== null;
 
@@ -132,13 +117,11 @@ export default function StudentFormScreen() {
     setSchoolId(nextId);
     setRouteId('');
     setBoardingStreet('');
-    setCustomStreet('');
   }
 
   function handleSelectRoute(nextId: string) {
     setRouteId(nextId);
     setBoardingStreet('');
-    setCustomStreet('');
   }
 
   function handleSelectVehicle(nextId: string) {
@@ -171,11 +154,25 @@ export default function StudentFormScreen() {
       schoolId,
       grade: grade.trim(),
       routeId,
-      boardingStreet: resolvedStreet,
+      boardingStreet: streetName,
       vehicleId,
       seatNumber,
       photoUri,
     };
+
+    function appendStreetIfNeeded() {
+      if (!selectedRoute || selectedRoute.streetsCovered.includes(streetName)) {
+        return;
+      }
+      dispatch(
+        updateRoute({
+          id: selectedRoute.id,
+          changes: {
+            streetsCovered: [...selectedRoute.streetsCovered, streetName],
+          },
+        }),
+      );
+    }
 
     if (isCreate) {
       const newId = Date.now().toString();
@@ -190,19 +187,7 @@ export default function StudentFormScreen() {
           }),
         );
       }
-      if (
-        selectedRoute &&
-        !selectedRoute.streetsCovered.includes(resolvedStreet)
-      ) {
-        dispatch(
-          updateRoute({
-            id: selectedRoute.id,
-            changes: {
-              streetsCovered: [...selectedRoute.streetsCovered, resolvedStreet],
-            },
-          }),
-        );
-      }
+      appendStreetIfNeeded();
     } else if (id && existing) {
       if (
         existing.vehicleId !== vehicleId ||
@@ -237,26 +222,16 @@ export default function StudentFormScreen() {
           );
         }
       }
-      if (
-        selectedRoute &&
-        !selectedRoute.streetsCovered.includes(resolvedStreet)
-      ) {
-        dispatch(
-          updateRoute({
-            id: selectedRoute.id,
-            changes: {
-              streetsCovered: [...selectedRoute.streetsCovered, resolvedStreet],
-            },
-          }),
-        );
-      }
+      appendStreetIfNeeded();
     }
 
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/students' as Href);
-    }
+    void persistor.flush().finally(() => {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/students' as Href);
+      }
+    });
   }
 
   return (
@@ -398,31 +373,34 @@ export default function StudentFormScreen() {
         <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
           Rua de embarque
         </Text>
-        {selectedRoute?.streetsCovered.map((street) => {
-          const selected = boardingStreet === street && customStreet.length === 0;
-          return (
-            <Pressable
-              key={street}
-              onPress={() => {
-                setBoardingStreet(street);
-                setCustomStreet('');
-              }}
-              className={`mb-2 rounded-2xl border px-4 py-3 ${
-                selected ? 'border-brand bg-brand-light' : 'border-slate-200 bg-white'
-              }`}>
-              <Text className="text-base text-slate-800">{street}</Text>
-            </Pressable>
-          );
-        })}
+        {selectedRoute && selectedRoute.streetsCovered.length > 0 ? (
+          <View className="mb-3 flex-row flex-wrap gap-2">
+            {selectedRoute.streetsCovered.map((street) => {
+              const selected = boardingStreet.trim() === street;
+              return (
+                <Pressable
+                  key={street}
+                  onPress={() => setBoardingStreet(street)}
+                  className={`rounded-full border px-3 py-2 ${
+                    selected
+                      ? 'border-brand bg-brand-light'
+                      : 'border-slate-200 bg-white'
+                  }`}>
+                  <Text
+                    className={`text-sm font-semibold ${
+                      selected ? 'text-brand-dark' : 'text-slate-700'
+                    }`}>
+                    {street}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
         <TextInput
-          value={customStreet}
-          onChangeText={(value) => {
-            setCustomStreet(value);
-            if (value.trim()) {
-              setBoardingStreet('');
-            }
-          }}
-          placeholder="Outra rua"
+          value={boardingStreet}
+          onChangeText={setBoardingStreet}
+          placeholder="Digite a rua ou toque numa sugestão"
           placeholderTextColor="#94A3B8"
           className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
         />

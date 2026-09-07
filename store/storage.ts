@@ -57,7 +57,8 @@ function canUseNativeAsyncStorage() {
  * Adapter de persistência. Troque a implementação (ex.: MMKV)
  * sem alterar store.ts nem os slices.
  *
- * Operações sempre resolvem (timeout) para o PersistGate não travar no Android.
+ * Leitura usa timeout para a rehydrate não travar no Android.
+ * Escrita atualiza memória na hora e não trata timeout como sucesso.
  */
 function createStorage(): Storage {
   if (!canUseNativeAsyncStorage()) {
@@ -68,15 +69,18 @@ function createStorage(): Storage {
     getItem: (key) => {
       try {
         const AsyncStorage = getAsyncStorage();
-        return withTimeout(Promise.resolve(AsyncStorage.getItem(key)), 2000, null);
+        return withTimeout(Promise.resolve(AsyncStorage.getItem(key)), 2000, null).then(
+          (value) => value ?? memory.get(key) ?? null,
+        );
       } catch {
-        return Promise.resolve(null);
+        return Promise.resolve(memory.get(key) ?? null);
       }
     },
     setItem: (key, value) => {
+      memory.set(key, value);
       try {
         const AsyncStorage = getAsyncStorage();
-        return withTimeout(Promise.resolve(AsyncStorage.setItem(key, value)), 2000, undefined);
+        return AsyncStorage.setItem(key, value).catch(() => undefined);
       } catch {
         return Promise.resolve();
       }
