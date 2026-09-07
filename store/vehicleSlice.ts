@@ -27,34 +27,52 @@ const vehicleSlice = createSlice({
         studentId: string;
       }>,
     ) {
-      const { vehicleId, seatNumber, studentId } = action.payload;
+      const { vehicleId, studentId } = action.payload;
+      const seatNumber = Number(action.payload.seatNumber);
       const vehicle = state.entities[vehicleId];
       if (!vehicle) {
         return;
       }
 
-      const seat = vehicle.seatsMap.find((item) => item.seatNumber === seatNumber);
-      if (seat) {
-        seat.studentId = studentId;
-        return;
+      const current = vehicle.seatsMap ?? [];
+      let found = false;
+      const seatsMap = current.map((item) => {
+        if (Number(item.seatNumber) !== seatNumber) {
+          return item;
+        }
+        found = true;
+        return { ...item, seatNumber, studentId };
+      });
+      if (!found) {
+        seatsMap.push({ seatNumber, studentId });
       }
 
-      vehicle.seatsMap.push({ seatNumber, studentId });
+      vehiclesAdapter.updateOne(state, {
+        id: vehicleId,
+        changes: { seatsMap },
+      });
     },
     removeSeat(
       state,
       action: PayloadAction<{ vehicleId: string; seatNumber: number }>,
     ) {
-      const { vehicleId, seatNumber } = action.payload;
+      const { vehicleId } = action.payload;
+      const seatNumber = Number(action.payload.seatNumber);
       const vehicle = state.entities[vehicleId];
-      if (!vehicle) {
+      if (!vehicle?.seatsMap) {
         return;
       }
 
-      const seat = vehicle.seatsMap.find((item) => item.seatNumber === seatNumber);
-      if (seat) {
-        seat.studentId = null;
-      }
+      vehiclesAdapter.updateOne(state, {
+        id: vehicleId,
+        changes: {
+          seatsMap: vehicle.seatsMap.map((item) =>
+            Number(item.seatNumber) === seatNumber
+              ? { ...item, studentId: null }
+              : item,
+          ),
+        },
+      });
     },
   },
 });
