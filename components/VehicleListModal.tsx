@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { SeatMapPicker } from '@/components/SeatMapPicker';
 import { removeVehicle, selectAllVehicles } from '@/store/vehicleSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { Vehicle } from '@/types';
@@ -104,44 +105,52 @@ export function VehicleListModal({
               {vehicles.map((vehicle) => {
                 const free = freeSeatsCount(vehicle);
                 return (
-                  <Pressable
+                  <View
                     key={vehicle.id}
-                    onPress={() => handleSelect(vehicle.id)}
-                    className="mb-3 flex-row items-center rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                    {vehicle.photoUri ? (
-                      <Image
-                        source={{ uri: vehicle.photoUri }}
-                        className="h-14 w-14 rounded-full bg-slate-200"
-                      />
-                    ) : (
-                      <View className="h-14 w-14 items-center justify-center rounded-full bg-brand-light">
-                        <Text className="text-lg">🚌</Text>
+                    className="mb-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <Pressable
+                      onPress={() => handleSelect(vehicle.id)}
+                      className="flex-row items-center">
+                      {vehicle.photoUri ? (
+                        <Image
+                          source={{ uri: vehicle.photoUri }}
+                          className="h-14 w-14 rounded-full bg-slate-200"
+                        />
+                      ) : (
+                        <View className="h-14 w-14 items-center justify-center rounded-full bg-brand-light">
+                          <Text className="text-lg">🚌</Text>
+                        </View>
+                      )}
+                      <View className="ml-3 flex-1">
+                        <Text className="text-lg font-bold text-slate-900">
+                          {vehicle.plate}
+                        </Text>
+                        <Text className="text-sm text-slate-500">
+                          {vehicle.responsible}
+                        </Text>
+                        <Text className="mt-1 text-sm font-semibold text-brand">
+                          {free} assentos livres de {vehicle.totalSeats}
+                        </Text>
                       </View>
-                    )}
-                    <View className="ml-3 flex-1">
-                      <Text className="text-lg font-bold text-slate-900">
-                        {vehicle.plate}
-                      </Text>
-                      <Text className="text-sm text-slate-500">
-                        {vehicle.responsible}
-                      </Text>
-                      <Text className="mt-1 text-sm font-semibold text-brand">
-                        {free} assentos livres de {vehicle.totalSeats}
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={() => handleEdit(vehicle.id)}
-                      hitSlop={8}
-                      className="h-10 w-10 items-center justify-center">
-                      <Feather name="edit-2" size={20} color="#0F6B4D" />
+                      <Pressable
+                        onPress={() => handleEdit(vehicle.id)}
+                        hitSlop={8}
+                        className="h-10 w-10 items-center justify-center">
+                        <Feather name="edit-2" size={20} color="#0F6B4D" />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDelete(vehicle)}
+                        hitSlop={8}
+                        className="h-10 w-10 items-center justify-center">
+                        <Feather name="trash-2" size={20} color="#DC2626" />
+                      </Pressable>
                     </Pressable>
-                    <Pressable
-                      onPress={() => handleDelete(vehicle)}
-                      hitSlop={8}
-                      className="h-10 w-10 items-center justify-center">
-                      <Feather name="trash-2" size={20} color="#DC2626" />
-                    </Pressable>
-                  </Pressable>
+                    {vehicle.seatsMap?.length ? (
+                      <View className="mt-3">
+                        <SeatMapPicker seatsMap={vehicle.seatsMap} />
+                      </View>
+                    ) : null}
+                  </View>
                 );
               })}
               <Pressable

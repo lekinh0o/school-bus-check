@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { SeatMapPicker } from '@/components/SeatMapPicker';
 import { addVehicle, selectVehicleById, updateVehicle } from '@/store/vehicleSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { SeatAssignment, Vehicle } from '@/types';
@@ -63,6 +64,14 @@ export default function VehicleFormScreen() {
     return Math.min(parsed, MAX_SEATS);
   }, [totalSeatsInput]);
 
+  const previewSeats = useMemo(
+    () => buildSeatsMap(seatCount, existing?.seatsMap),
+    [seatCount, existing?.seatsMap],
+  );
+  const occupiedCount = previewSeats.filter(
+    (seat) => seat.studentId != null && seat.studentId.length > 0,
+  ).length;
+
   const canSubmit =
     isValidPlate(plate) && responsible.trim().length > 0 && seatCount > 0;
 
@@ -82,7 +91,7 @@ export default function VehicleFormScreen() {
       plate: formatPlate(plate),
       responsible: responsible.trim(),
       totalSeats: seatCount,
-      seatsMap: buildSeatsMap(seatCount, existing?.seatsMap),
+      seatsMap: previewSeats,
       photoUri,
     };
 
@@ -174,17 +183,9 @@ export default function VehicleFormScreen() {
         {seatCount > 0 ? (
           <View className="mt-6">
             <Text className="mb-3 text-center text-sm font-semibold text-slate-700">
-              Mapa de assentos · {seatCount} disponíveis
+              Mapa de assentos · {occupiedCount} ocupados de {seatCount}
             </Text>
-            <View className="flex-row flex-wrap justify-center gap-2">
-              {Array.from({ length: seatCount }, (_, index) => (
-                <View
-                  key={index}
-                  className="h-14 w-14 items-center justify-center rounded-xl border border-brand bg-brand-light">
-                  <Text className="text-sm font-bold text-brand-dark">{index + 1}</Text>
-                </View>
-              ))}
-            </View>
+            <SeatMapPicker seatsMap={previewSeats} />
           </View>
         ) : null}
 
