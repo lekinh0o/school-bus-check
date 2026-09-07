@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { SeatMapPicker } from '@/components/SeatMapPicker';
+import { BusSeatMap } from '@/components/BusSeatMap';
 import { selectAllRoutes, selectRouteById, updateRoute } from '@/store/routeSlice';
 import { selectAllSchools, updateSchool } from '@/store/schoolSlice';
 import {
@@ -443,11 +443,11 @@ export default function StudentFormScreen() {
             <Text className="mb-3 text-center text-sm font-semibold text-slate-700">
               Mapa de assentos
             </Text>
-            <SeatMapPicker
+            <BusSeatMap
               seatsMap={selectedVehicle.seatsMap}
               selectedSeat={seatNumber}
               currentStudentId={isCreate ? undefined : id}
-              onSelect={setSeatNumber}
+              onSelectSeat={setSeatNumber}
             />
           </View>
         ) : null}
