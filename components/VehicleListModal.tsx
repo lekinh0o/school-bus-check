@@ -1,6 +1,15 @@
 import { Feather } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
-import { Alert, Image, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import {
+  Alert,
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { removeVehicle, selectAllVehicles } from '@/store/vehicleSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
@@ -60,10 +69,12 @@ export function VehicleListModal({
       visible={visible}
       transparent
       animationType="slide"
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
       onRequestClose={onClose}>
-      <View className="flex-1 justify-end bg-black/50">
-        <Pressable className="flex-1" onPress={onClose} />
-        <View className="max-h-[80%] rounded-t-3xl bg-white px-5 pt-4 pb-8">
+      <View style={styles.backdrop}>
+        <Pressable style={styles.dismissArea} onPress={onClose} />
+        <View style={styles.sheet}>
           <View className="mb-4 flex-row items-center justify-between">
             <Text className="text-xl font-bold text-slate-900">Veículos</Text>
             <Pressable
@@ -145,3 +156,23 @@ export function VehicleListModal({
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  dismissArea: {
+    flex: 1,
+  },
+  sheet: {
+    maxHeight: '80%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 32,
+  },
+});

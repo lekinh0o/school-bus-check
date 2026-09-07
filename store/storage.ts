@@ -57,8 +57,8 @@ function canUseNativeAsyncStorage() {
  * Adapter de persistência. Troque a implementação (ex.: MMKV)
  * sem alterar store.ts nem os slices.
  *
- * Leitura usa timeout para a rehydrate não travar no Android.
- * Escrita atualiza memória na hora e não trata timeout como sucesso.
+ * getItem não pode devolver null por timeout: o redux-persist trata isso
+ * como “sem dados” e grava o estado vazio por cima do AsyncStorage.
  */
 function createStorage(): Storage {
   if (!canUseNativeAsyncStorage()) {
@@ -69,9 +69,9 @@ function createStorage(): Storage {
     getItem: (key) => {
       try {
         const AsyncStorage = getAsyncStorage();
-        return withTimeout(Promise.resolve(AsyncStorage.getItem(key)), 2000, null).then(
-          (value) => value ?? memory.get(key) ?? null,
-        );
+        return Promise.resolve(AsyncStorage.getItem(key))
+          .then((value) => value ?? memory.get(key) ?? null)
+          .catch(() => memory.get(key) ?? null);
       } catch {
         return Promise.resolve(memory.get(key) ?? null);
       }
@@ -80,15 +80,23 @@ function createStorage(): Storage {
       memory.set(key, value);
       try {
         const AsyncStorage = getAsyncStorage();
-        return AsyncStorage.setItem(key, value).catch(() => undefined);
+        const write = Promise.resolve(AsyncStorage.setItem(key, value)).catch(
+          () => undefined,
+        );
+        return withTimeout(write, 4000, undefined);
       } catch {
         return Promise.resolve();
       }
     },
     removeItem: (key) => {
+      memory.delete(key);
       try {
         const AsyncStorage = getAsyncStorage();
-        return withTimeout(Promise.resolve(AsyncStorage.removeItem(key)), 2000, undefined);
+        return withTimeout(
+          Promise.resolve(AsyncStorage.removeItem(key)),
+          4000,
+          undefined,
+        );
       } catch {
         return Promise.resolve();
       }

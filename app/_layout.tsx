@@ -44,7 +44,7 @@ function PersistBootstrap({ children }: { children: ReactNode }) {
       }
     });
 
-    const fallback = setTimeout(() => setReady(true), 2500);
+    const fallback = setTimeout(() => setReady(true), 8000);
 
     return () => {
       unsubscribe();

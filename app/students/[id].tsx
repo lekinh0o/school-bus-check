@@ -113,6 +113,19 @@ export default function StudentFormScreen() {
     vehicleId.length > 0 &&
     seatNumber !== null;
 
+  const missingFields: string[] = [];
+  if (name.trim().length === 0) missingFields.push('nome');
+  if (age === null) missingFields.push('idade');
+  if (responsible.trim().length === 0) missingFields.push('responsável');
+  if (!isValidPhoneBr(phone1)) missingFields.push('telefone 1');
+  if (!isValidPhoneBr(phone2)) missingFields.push('telefone 2');
+  if (grade.trim().length === 0) missingFields.push('série');
+  if (!schoolId) missingFields.push('escola');
+  if (!routeId) missingFields.push('rota');
+  if (!streetName) missingFields.push('rua de embarque');
+  if (!vehicleId) missingFields.push('veículo');
+  if (seatNumber === null) missingFields.push('assento');
+
   function handleSelectSchool(nextId: string) {
     setSchoolId(nextId);
     setRouteId('');
@@ -225,13 +238,13 @@ export default function StudentFormScreen() {
       appendStreetIfNeeded();
     }
 
-    void persistor.flush().finally(() => {
-      if (router.canGoBack()) {
-        router.back();
-      } else {
-        router.replace('/students' as Href);
-      }
-    });
+    void persistor.flush();
+
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/students' as Href);
+    }
   }
 
   return (
@@ -447,6 +460,13 @@ export default function StudentFormScreen() {
           }`}>
           <Text className="text-lg font-bold text-white">Salvar</Text>
         </Pressable>
+        {!canSubmit ? (
+          <Text className="mt-3 text-center text-sm text-slate-500">
+            Falta preencher: {missingFields.join(', ')}. Telefones precisam de
+            DDD e pelo menos 10 dígitos. Escolha um assento livre no mapa após
+            o veículo.
+          </Text>
+        ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );

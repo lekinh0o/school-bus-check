@@ -80,7 +80,7 @@ const persistConfig = {
   key: 'root',
   storage,
   version: 2,
-  timeout: 2000,
+  timeout: 0,
   migrate: createMigrate(migrations, { debug: false }),
 };
 
