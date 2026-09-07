@@ -14,7 +14,7 @@ O sistema SHALL permitir que o usuário abra a listagem de escolas a partir do c
 - **THEN** o sistema navega para a tela de listagem de escolas
 
 ### Requirement: Listagem de escolas cadastradas
-O sistema SHALL exibir todas as escolas persistidas. Cada item MUST mostrar o nome da escola, o nome do diretor(a) e um resumo com a quantidade de alunos vinculados e a quantidade de rotas vinculadas.
+O sistema SHALL exibir todas as escolas persistidas. Cada item MUST mostrar o nome da escola, o nome do diretor(a) e um resumo com a quantidade de alunos vinculados e a quantidade de rotas vinculadas. A quantidade de rotas MUST refletir os identificadores de rota realmente associados à escola após criar, reatribuir ou excluir rotas.
 
 #### Scenario: Lista com escolas
 - **WHEN** existem uma ou mais escolas cadastradas
@@ -23,6 +23,10 @@ O sistema SHALL exibir todas as escolas persistidas. Cada item MUST mostrar o no
 #### Scenario: Lista vazia
 - **WHEN** não há escolas cadastradas
 - **THEN** o sistema mostra um estado vazio compreensível e ainda oferece ação para adicionar uma escola
+
+#### Scenario: Contagem após cadastro de rota
+- **WHEN** o usuário cadastra uma rota vinculada a uma escola e volta à listagem de escolas
+- **THEN** o resumo daquela escola mostra uma rota a mais do que antes do cadastro
 
 ### Requirement: Criar escola
 O sistema SHALL permitir criar uma escola informando nome, endereço, diretor(a) e telefone. Na criação, as listas de alunos e rotas vinculadas MUST iniciar vazias. O identificador MUST ser gerado no cliente.
