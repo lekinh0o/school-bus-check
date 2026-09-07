@@ -6,7 +6,7 @@ Consulte este arquivo e `store/attendanceSlice.ts` antes de alterar estado, flux
 
 - React Native + Expo SDK 57, TypeScript, Expo Router (`app/`).
 - Estilo: NativeWind 4 + Tailwind CSS 3 (`className`, `global.css`, `tailwind.config.js`).
-- Estado: Redux Toolkit em `store/store.ts`. Entidades relacionais (persistência local, `createEntityAdapter`): `vehicleSlice`, `schoolSlice`, `routeSlice`, `studentSlice`. Presença diária: `attendanceSlice.ts`.
+- Persistência offline: `redux-persist` na raiz da store. Storage via adapter em `store/storage.ts` (hoje AsyncStorage; trocar só esse arquivo para MMKV). `PersistGate` em `app/_layout.tsx`.
 - Tipos de domínio em `types/index.ts` (`Vehicle`, `School`, `Route`, `Student`). Tipos de chamada em `types/attendance.ts` (não confundir o `Student` legado da chamada com o `Student` de domínio).
 - UI de chamada lê presença via `hooks/useAttendance.tsx`. Não crie Context paralelo para presença nem para entidades.
 - Autenticação atual é fictícia (`hooks/useAuth.tsx`).
@@ -33,11 +33,11 @@ Antes de alterar entidades (veículo, escola, rota, aluno), leia o slice corresp
 
 - Entidades: CRUD `addOne`/`updateOne`/`removeOne` (exportados como `addVehicle`, `addSchool`, etc.). Veículo: `assignSeat`, `removeSeat`. Rota: `addStreetToRoute`. Selectors: `*Selectors.selectAll` / `selectById`.
 - Presença: `setShift`, `setMorningStatus`, `setAfternoonStatus`. Labels em `constants/attendance.ts`.
-- Dados 100% serializáveis (sem Date/Map/Set/funções) para persistência offline futura.
-- Provider: `app/_layout.tsx` envolve a árvore com `<Provider store={store}>`.
+- Dados 100% serializáveis (sem Date/Map/Set/funções). Persistência: `persistReducer` na raiz (`attendance`, `vehicles`, `schools`, `routes`, `students`).
+- Provider: `app/_layout.tsx` usa `<Provider store={store}>` e `<PersistGate persistor={persistor}>`.
 
 ## Código
 
 - Componentes funcionais + TypeScript estrito.
 - Telas em `app/`, UI reutilizável em `components/` (`StudentCard`, `StatusButtons`).
-- Não invente backend; persistência ainda não existe.
+- Não invente backend. Persistência é local (redux-persist + adapter em `store/storage.ts`).
