@@ -40,7 +40,7 @@ function SeatSlot({
   onSelectSeat?: (seatNumber: number) => void;
 }) {
   if (!seat) {
-    return <View className="h-14 w-14" />;
+    return <View className="h-12 w-12" />;
   }
 
   const occupied = isOccupied(seat);
@@ -51,26 +51,21 @@ function SeatSlot({
 
   if (takenByOther) {
     return (
-      <View className="h-14 w-14 items-center justify-center rounded-xl border border-slate-300 bg-slate-200">
-        <Text className="text-xs font-bold text-slate-500">✕</Text>
-        <Text className="text-sm font-bold text-slate-600">{seat.seatNumber}</Text>
+      <View className="h-12 w-12 items-center justify-center rounded-xl border border-red-400 bg-red-500">
+        <Text className="text-[10px] font-bold text-white">✕</Text>
+        <Text className="text-sm font-bold text-white">{seat.seatNumber}</Text>
       </View>
     );
   }
 
   const body = (
     <View
-      className={`h-14 w-14 items-center justify-center rounded-xl border ${
+      className={`h-12 w-12 items-center justify-center rounded-xl border ${
         selected
-          ? 'border-brand bg-brand'
-          : 'border-slate-200 bg-white'
+          ? 'border-brand-dark bg-brand'
+          : 'border-emerald-500 bg-emerald-500'
       }`}>
-      <Text
-        className={`text-sm font-bold ${
-          selected ? 'text-white' : 'text-slate-700'
-        }`}>
-        {seat.seatNumber}
-      </Text>
+      <Text className="text-sm font-bold text-white">{seat.seatNumber}</Text>
     </View>
   );
 
@@ -97,7 +92,7 @@ function SeatPair({
   onSelectSeat?: (seatNumber: number) => void;
 }) {
   return (
-    <View className="flex-row items-center gap-2">
+    <View className="flex-row items-center gap-1.5">
       <SeatSlot
         seat={left}
         selectedSeat={selectedSeat}
@@ -123,8 +118,8 @@ export function BusSeatMap({
   const rows = chunkVisualRows(seatsMap);
 
   return (
-    <View className="self-center w-full max-w-sm rounded-t-3xl rounded-b-2xl border border-slate-200 bg-slate-50 px-3 pb-4 pt-3">
-      <Text className="mb-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <View className="self-center w-full max-w-sm rounded-t-3xl rounded-b-2xl border border-slate-200 bg-white px-3 pb-3 pt-3">
+      <Text className="mb-2 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
         Frente
       </Text>
       {rows.map((row, index) => {
@@ -132,7 +127,7 @@ export function BusSeatMap({
         return (
           <View
             key={`row-${index}`}
-            className="mb-2 flex-row items-center justify-between">
+            className="mb-1.5 flex-row items-center justify-between">
             <SeatPair
               left={leftWindow}
               right={leftAisle}
@@ -140,7 +135,7 @@ export function BusSeatMap({
               currentStudentId={currentStudentId}
               onSelectSeat={onSelectSeat}
             />
-            <View className="w-8" />
+            <View className="w-6" />
             <SeatPair
               left={rightAisle}
               right={rightWindow}
@@ -151,6 +146,20 @@ export function BusSeatMap({
           </View>
         );
       })}
+      <View className="mt-2 flex-row justify-center gap-4">
+        <View className="flex-row items-center gap-1.5">
+          <View className="h-3 w-3 rounded-sm bg-emerald-500" />
+          <Text className="text-xs text-slate-600">Livre</Text>
+        </View>
+        <View className="flex-row items-center gap-1.5">
+          <View className="h-3 w-3 rounded-sm bg-red-500" />
+          <Text className="text-xs text-slate-600">Ocupado</Text>
+        </View>
+        <View className="flex-row items-center gap-1.5">
+          <View className="h-3 w-3 rounded-sm bg-brand" />
+          <Text className="text-xs text-slate-600">Selecionado</Text>
+        </View>
+      </View>
     </View>
   );
 }
