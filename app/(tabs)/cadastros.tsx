@@ -7,7 +7,7 @@ import { VehicleListModal } from '@/components/VehicleListModal';
 const MENU = [
   { key: 'vehicles', title: 'Veículos', hint: 'Vans e mapa de assentos', enabled: true },
   { key: 'schools', title: 'Escolas', hint: 'Unidades e diretoria', enabled: true },
-  { key: 'routes', title: 'Rotas', hint: 'Em breve', enabled: false },
+  { key: 'routes', title: 'Rotas', hint: 'Percursos e escolas', enabled: true },
   { key: 'students', title: 'Alunos', hint: 'Em breve', enabled: false },
 ] as const;
 
@@ -26,6 +26,10 @@ export default function CadastrosScreen() {
     }
     if (key === 'schools') {
       router.push('/schools' as Href);
+      return;
+    }
+    if (key === 'routes') {
+      router.push('/routes' as Href);
     }
   }
 

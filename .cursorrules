@@ -33,6 +33,7 @@ Antes de alterar entidades (veículo, escola, rota, aluno), leia o slice corresp
 
 - Cadastro de veículo: `app/vehicles/[id].tsx` (`new` cria com `addVehicle`; id existente edita com `updateVehicle`). Lista: `components/VehicleListModal.tsx`.
 - Cadastro de escola: `app/schools/index.tsx` + `app/schools/[id].tsx` (`addSchool` / `updateSchool` / `removeSchool`).
+- Cadastro de rota: `app/routes/index.tsx` + `app/routes/[id].tsx` (`addRoute` / `updateRoute` / `removeRoute`; sync de `School.routeIds`).
 - Presença: `setShift`, `setMorningStatus`, `setAfternoonStatus`. Labels em `constants/attendance.ts`.
 - Dados 100% serializáveis (sem Date/Map/Set/funções). Persistência: `persistReducer` na raiz (`attendance`, `vehicles`, `schools`, `routes`, `students`).
 - Provider: `app/_layout.tsx` usa `<Provider store={store}>` e `<PersistGate persistor={persistor}>`.
