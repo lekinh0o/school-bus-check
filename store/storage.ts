@@ -14,6 +14,38 @@ const memoryStorage: Storage = {
   },
 };
 
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        resolve(fallback);
+      });
+  });
+}
+
+type AsyncStorageLike = {
+  getItem: (key: string) => Promise<string | null>;
+  setItem: (key: string, value: string) => Promise<void>;
+  removeItem: (key: string) => Promise<void>;
+};
+
+function getAsyncStorage(): AsyncStorageLike {
+  const mod = require('@react-native-async-storage/async-storage') as {
+    default?: AsyncStorageLike;
+  } & Partial<AsyncStorageLike>;
+  const storage = mod.default ?? mod;
+  if (!storage.getItem || !storage.setItem || !storage.removeItem) {
+    throw new Error('AsyncStorage indisponível');
+  }
+  return storage as AsyncStorageLike;
+}
+
 function canUseNativeAsyncStorage() {
   const isReactNative =
     typeof navigator !== 'undefined' && navigator.product === 'ReactNative';
@@ -25,21 +57,38 @@ function canUseNativeAsyncStorage() {
  * Adapter de persistência. Troque a implementação (ex.: MMKV)
  * sem alterar store.ts nem os slices.
  *
- * No SSR do Expo Router não há `window`; usa memória para não travar o PersistGate.
+ * Operações sempre resolvem (timeout) para o PersistGate não travar no Android.
  */
 function createStorage(): Storage {
   if (!canUseNativeAsyncStorage()) {
     return memoryStorage;
   }
 
-  // require preguiçoso: o módulo do AsyncStorage acessa `window` no load.
-  const AsyncStorage =
-    require('@react-native-async-storage/async-storage').default;
-
   return {
-    getItem: (key) => AsyncStorage.getItem(key),
-    setItem: (key, value) => AsyncStorage.setItem(key, value),
-    removeItem: (key) => AsyncStorage.removeItem(key),
+    getItem: (key) => {
+      try {
+        const AsyncStorage = getAsyncStorage();
+        return withTimeout(Promise.resolve(AsyncStorage.getItem(key)), 2000, null);
+      } catch {
+        return Promise.resolve(null);
+      }
+    },
+    setItem: (key, value) => {
+      try {
+        const AsyncStorage = getAsyncStorage();
+        return withTimeout(Promise.resolve(AsyncStorage.setItem(key, value)), 2000, undefined);
+      } catch {
+        return Promise.resolve();
+      }
+    },
+    removeItem: (key) => {
+      try {
+        const AsyncStorage = getAsyncStorage();
+        return withTimeout(Promise.resolve(AsyncStorage.removeItem(key)), 2000, undefined);
+      } catch {
+        return Promise.resolve();
+      }
+    },
   };
 }
 

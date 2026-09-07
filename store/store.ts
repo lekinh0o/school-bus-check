@@ -30,6 +30,7 @@ const persistConfig = {
   key: 'root',
   storage,
   version: 1,
+  timeout: 2000,
 };
 
 const persistedReducer = persistReducer(persistConfig, rootReducer);
@@ -44,7 +45,9 @@ export const store = configureStore({
     }),
 });
 
-export const persistor = persistStore(store);
+export const persistor = persistStore(store, {
+  manualPersist: true,
+} as never);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

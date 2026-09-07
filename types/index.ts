@@ -9,6 +9,7 @@ export type Vehicle = {
   responsible: string;
   totalSeats: number;
   seatsMap: SeatAssignment[];
+  photoUri?: string;
 };
 
 export type School = {

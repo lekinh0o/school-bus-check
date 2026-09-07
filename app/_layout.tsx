@@ -2,9 +2,9 @@ import '../global.css';
 
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { Provider } from 'react-redux';
-import { PersistGate } from 'redux-persist/integration/react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
@@ -27,22 +27,55 @@ function PersistLoading() {
   );
 }
 
+function PersistBootstrap({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(persistor.getState().bootstrapped);
+
+  useEffect(() => {
+    persistor.persist();
+
+    if (persistor.getState().bootstrapped) {
+      setReady(true);
+      return;
+    }
+
+    const unsubscribe = persistor.subscribe(() => {
+      if (persistor.getState().bootstrapped) {
+        setReady(true);
+      }
+    });
+
+    const fallback = setTimeout(() => setReady(true), 2500);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(fallback);
+    };
+  }, []);
+
+  if (!ready) {
+    return <PersistLoading />;
+  }
+
+  return children;
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   return (
     <Provider store={store}>
-      <PersistGate loading={<PersistLoading />} persistor={persistor}>
+      <PersistBootstrap>
         <AuthProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="vehicles" />
             </Stack>
             <StatusBar style="auto" />
           </ThemeProvider>
         </AuthProvider>
-      </PersistGate>
+      </PersistBootstrap>
     </Provider>
   );
 }

@@ -31,7 +31,7 @@ Fluxo típico com van: manhã ingresso → desembarque na escola; tarde ingresso
 
 Antes de alterar entidades (veículo, escola, rota, aluno), leia o slice correspondente em `store/` e `types/index.ts`. Antes de alterar presença diária, leia `store/attendanceSlice.ts`.
 
-- Entidades: CRUD `addOne`/`updateOne`/`removeOne` (exportados como `addVehicle`, `addSchool`, etc.). Veículo: `assignSeat`, `removeSeat`. Rota: `addStreetToRoute`. Selectors: `*Selectors.selectAll` / `selectById`.
+- Cadastro de veículo: `app/vehicles/[id].tsx` (`new` cria com `addVehicle`; id existente edita com `updateVehicle`). Lista: `components/VehicleListModal.tsx`.
 - Presença: `setShift`, `setMorningStatus`, `setAfternoonStatus`. Labels em `constants/attendance.ts`.
 - Dados 100% serializáveis (sem Date/Map/Set/funções). Persistência: `persistReducer` na raiz (`attendance`, `vehicles`, `schools`, `routes`, `students`).
 - Provider: `app/_layout.tsx` usa `<Provider store={store}>` e `<PersistGate persistor={persistor}>`.

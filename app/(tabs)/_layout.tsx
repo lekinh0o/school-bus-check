@@ -16,9 +16,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Chamada',
+          title: 'Início',
           tabBarIcon: ({ color }) => (
-            <Text style={{ color, fontSize: 18 }}>🚌</Text>
+            <Text style={{ color, fontSize: 18 }}>🏠</Text>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="cadastros"
+        options={{
+          title: 'Cadastros',
+          tabBarIcon: ({ color }) => (
+            <Text style={{ color, fontSize: 18 }}>📋</Text>
           ),
         }}
       />
