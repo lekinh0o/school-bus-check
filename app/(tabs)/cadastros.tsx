@@ -8,7 +8,7 @@ const MENU = [
   { key: 'vehicles', title: 'Veículos', hint: 'Vans e mapa de assentos', enabled: true },
   { key: 'schools', title: 'Escolas', hint: 'Unidades e diretoria', enabled: true },
   { key: 'routes', title: 'Rotas', hint: 'Percursos e escolas', enabled: true },
-  { key: 'students', title: 'Alunos', hint: 'Em breve', enabled: false },
+  { key: 'students', title: 'Alunos', hint: 'Vínculos, ruas e assentos', enabled: true },
 ] as const;
 
 export default function CadastrosScreen() {
@@ -30,6 +30,10 @@ export default function CadastrosScreen() {
     }
     if (key === 'routes') {
       router.push('/routes' as Href);
+      return;
+    }
+    if (key === 'students') {
+      router.push('/students' as Href);
     }
   }
 

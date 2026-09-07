@@ -1,4 +1,3 @@
-import * as ImagePicker from 'expo-image-picker';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -15,6 +14,8 @@ import {
 import { addVehicle, selectVehicleById, updateVehicle } from '@/store/vehicleSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { SeatAssignment, Vehicle } from '@/types';
+import { formatPlate, isValidPlate, parsePositiveInt } from '@/lib/inputMasks';
+import { pickLocalImage } from '@/lib/pickImage';
 
 const MAX_SEATS = 60;
 
@@ -55,31 +56,20 @@ export default function VehicleFormScreen() {
   }, [existing]);
 
   const seatCount = useMemo(() => {
-    const parsed = Number.parseInt(totalSeatsInput, 10);
-    if (!Number.isFinite(parsed) || parsed < 1) {
+    const parsed = parsePositiveInt(totalSeatsInput);
+    if (parsed === null) {
       return 0;
     }
     return Math.min(parsed, MAX_SEATS);
   }, [totalSeatsInput]);
 
   const canSubmit =
-    plate.trim().length > 0 && responsible.trim().length > 0 && seatCount > 0;
+    isValidPlate(plate) && responsible.trim().length > 0 && seatCount > 0;
 
   async function handlePickPhoto() {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.7,
-    });
-
-    if (!result.canceled && result.assets[0]?.uri) {
-      setPhotoUri(result.assets[0].uri);
+    const uri = await pickLocalImage([4, 3]);
+    if (uri) {
+      setPhotoUri(uri);
     }
   }
 
@@ -89,7 +79,7 @@ export default function VehicleFormScreen() {
     }
 
     const payload: Omit<Vehicle, 'id'> = {
-      plate: plate.trim().toUpperCase(),
+      plate: formatPlate(plate),
       responsible: responsible.trim(),
       totalSeats: seatCount,
       seatsMap: buildSeatsMap(seatCount, existing?.seatsMap),
@@ -149,9 +139,9 @@ export default function VehicleFormScreen() {
         <Text className="mt-4 mb-2 text-sm font-semibold text-slate-700">Placa</Text>
         <TextInput
           value={plate}
-          onChangeText={setPlate}
+          onChangeText={(value) => setPlate(formatPlate(value))}
           autoCapitalize="characters"
-          placeholder="ABC1D23"
+          placeholder="ABC1D23 ou ABC-1234"
           placeholderTextColor="#94A3B8"
           className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
         />
@@ -172,7 +162,9 @@ export default function VehicleFormScreen() {
         </Text>
         <TextInput
           value={totalSeatsInput}
-          onChangeText={(value) => setTotalSeatsInput(value.replace(/[^\d]/g, ''))}
+          onChangeText={(value) =>
+            setTotalSeatsInput(value.replace(/[^\d]/g, '').slice(0, 2))
+          }
           keyboardType="number-pad"
           placeholder="Ex: 16"
           placeholderTextColor="#94A3B8"

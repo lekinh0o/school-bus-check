@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { type Href, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,12 +15,19 @@ import {
 import { addRoute, selectRouteById, updateRoute } from '@/store/routeSlice';
 import { selectAllSchools, updateSchool } from '@/store/schoolSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
-import type { RoutePeriod } from '@/types';
+import type { RouteDirection, RoutePeriod } from '@/types';
+import { formatTimeInput, isValidHhMm } from '@/lib/inputMasks';
+import { pickLocalImage } from '@/lib/pickImage';
 
 const PERIOD_OPTIONS: { value: RoutePeriod; label: string }[] = [
   { value: 'Manha', label: 'Manhã' },
   { value: 'Tarde', label: 'Tarde' },
   { value: 'Noite', label: 'Noite' },
+];
+
+const DIRECTION_OPTIONS: { value: RouteDirection; label: string }[] = [
+  { value: 'IDA', label: 'Ida' },
+  { value: 'VOLTA', label: 'Volta' },
 ];
 
 function withRouteId(routeIds: string[], routeId: string): string[] {
@@ -41,6 +49,8 @@ export default function RouteFormScreen() {
   );
   const schools = useAppSelector(selectAllSchools);
 
+  const [title, setTitle] = useState('');
+  const [direction, setDirection] = useState<RouteDirection | null>(null);
   const [responsible, setResponsible] = useState('');
   const [monitor, setMonitor] = useState('');
   const [startPoint, setStartPoint] = useState('');
@@ -50,11 +60,16 @@ export default function RouteFormScreen() {
   const [schoolId, setSchoolId] = useState('');
   const [streets, setStreets] = useState<string[]>([]);
   const [streetDraft, setStreetDraft] = useState('');
+  const [responsiblePhotoUri, setResponsiblePhotoUri] = useState<
+    string | undefined
+  >();
 
   useEffect(() => {
     if (!existing) {
       return;
     }
+    setTitle(existing.title);
+    setDirection(existing.direction);
     setResponsible(existing.responsible);
     setMonitor(existing.monitor);
     setStartPoint(existing.startPoint);
@@ -63,14 +78,17 @@ export default function RouteFormScreen() {
     setPeriod(existing.period);
     setSchoolId(existing.schoolId);
     setStreets(existing.streetsCovered);
+    setResponsiblePhotoUri(existing.responsiblePhotoUri);
   }, [existing]);
 
   const canSubmit =
+    title.trim().length > 0 &&
+    direction !== null &&
     responsible.trim().length > 0 &&
     monitor.trim().length > 0 &&
     startPoint.trim().length > 0 &&
-    startTime.trim().length > 0 &&
-    endTime.trim().length > 0 &&
+    isValidHhMm(startTime) &&
+    isValidHhMm(endTime) &&
     period !== null &&
     schoolId.length > 0;
 
@@ -87,12 +105,34 @@ export default function RouteFormScreen() {
     setStreets((current) => current.filter((_, i) => i !== index));
   }
 
+  function moveStreet(index: number, delta: number) {
+    const nextIndex = index + delta;
+    if (nextIndex < 0 || nextIndex >= streets.length) {
+      return;
+    }
+    setStreets((current) => {
+      const copy = [...current];
+      const [item] = copy.splice(index, 1);
+      copy.splice(nextIndex, 0, item);
+      return copy;
+    });
+  }
+
+  async function handlePickPhoto() {
+    const uri = await pickLocalImage([1, 1]);
+    if (uri) {
+      setResponsiblePhotoUri(uri);
+    }
+  }
+
   function handleSubmit() {
-    if (!canSubmit || period === null) {
+    if (!canSubmit || period === null || direction === null) {
       return;
     }
 
     const fields = {
+      title: title.trim(),
+      direction,
       responsible: responsible.trim(),
       monitor: monitor.trim(),
       startPoint: startPoint.trim(),
@@ -101,6 +141,7 @@ export default function RouteFormScreen() {
       startTime: startTime.trim(),
       endTime: endTime.trim(),
       period,
+      responsiblePhotoUri,
     };
 
     if (isCreate) {
@@ -164,7 +205,58 @@ export default function RouteFormScreen() {
         className="flex-1"
         contentContainerClassName="p-5 pb-10"
         keyboardShouldPersistTaps="handled">
+        {responsiblePhotoUri ? (
+          <Image
+            source={{ uri: responsiblePhotoUri }}
+            className="mb-4 h-24 w-24 self-center rounded-full bg-slate-200"
+          />
+        ) : null}
+        <Pressable
+          onPress={handlePickPhoto}
+          className="mb-4 items-center rounded-2xl border border-brand bg-brand-light py-4">
+          <Text className="text-base font-semibold text-brand-dark">
+            Foto do responsável
+          </Text>
+        </Pressable>
+
         <Text className="mb-2 text-sm font-semibold text-slate-700">
+          Título da rota
+        </Text>
+        <TextInput
+          value={title}
+          onChangeText={setTitle}
+          placeholder="Rota Bairro Cruzeiro - Manhã"
+          placeholderTextColor="#94A3B8"
+          className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
+        />
+
+        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
+          Sentido
+        </Text>
+        <View className="flex-row gap-2">
+          {DIRECTION_OPTIONS.map((option) => {
+            const selected = direction === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                onPress={() => setDirection(option.value)}
+                className={`flex-1 items-center rounded-2xl border py-3 ${
+                  selected
+                    ? 'border-brand bg-brand-light'
+                    : 'border-slate-200 bg-white'
+                }`}>
+                <Text
+                  className={`text-sm font-semibold ${
+                    selected ? 'text-brand-dark' : 'text-slate-600'
+                  }`}>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
           Responsável
         </Text>
         <TextInput
@@ -202,7 +294,8 @@ export default function RouteFormScreen() {
         </Text>
         <TextInput
           value={startTime}
-          onChangeText={setStartTime}
+          onChangeText={(value) => setStartTime(formatTimeInput(value))}
+          keyboardType="number-pad"
           placeholder="07:00"
           placeholderTextColor="#94A3B8"
           className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
@@ -213,7 +306,8 @@ export default function RouteFormScreen() {
         </Text>
         <TextInput
           value={endTime}
-          onChangeText={setEndTime}
+          onChangeText={(value) => setEndTime(formatTimeInput(value))}
+          keyboardType="number-pad"
           placeholder="08:30"
           placeholderTextColor="#94A3B8"
           className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
@@ -296,7 +390,29 @@ export default function RouteFormScreen() {
         {streets.map((street, index) => (
           <View
             key={`${street}-${index}`}
-            className="mt-2 flex-row items-center rounded-2xl border border-slate-200 bg-white px-4 py-3">
+            className="mt-2 flex-row items-center rounded-2xl border border-slate-200 bg-white px-3 py-2">
+            <View className="mr-1">
+              <Pressable
+                disabled={index === 0}
+                onPress={() => moveStreet(index, -1)}
+                className="h-8 w-8 items-center justify-center">
+                <Feather
+                  name="chevron-up"
+                  size={20}
+                  color={index === 0 ? '#CBD5E1' : '#0F6B4D'}
+                />
+              </Pressable>
+              <Pressable
+                disabled={index === streets.length - 1}
+                onPress={() => moveStreet(index, 1)}
+                className="h-8 w-8 items-center justify-center">
+                <Feather
+                  name="chevron-down"
+                  size={20}
+                  color={index === streets.length - 1 ? '#CBD5E1' : '#0F6B4D'}
+                />
+              </Pressable>
+            </View>
             <Text className="flex-1 text-base text-slate-900">{street}</Text>
             <Pressable
               onPress={() => handleRemoveStreet(index)}
