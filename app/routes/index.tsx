@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { RouteTimeline } from '@/components/RouteTimeline';
 import { removeRoute, selectAllRoutes } from '@/store/routeSlice';
 import { updateSchool } from '@/store/schoolSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
@@ -30,7 +31,7 @@ export default function RoutesListScreen() {
   function handleDelete(route: Route) {
     Alert.alert(
       'Excluir rota',
-      `Deseja excluir a rota de ${route.startPoint}? Esta ação não pode ser desfeita.`,
+      `Deseja excluir ${route.title}? Esta ação não pode ser desfeita.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -68,34 +69,42 @@ export default function RoutesListScreen() {
         ) : (
           routes.map((route) => {
             const school = schoolEntities[route.schoolId];
+            const schoolName = school?.name ?? 'Escola não encontrada';
             return (
               <View
                 key={route.id}
-                className="mb-3 flex-row items-center rounded-2xl border border-slate-200 bg-white p-4">
-                <View className="flex-1 pr-2">
-                  <Text className="text-lg font-bold text-slate-900">
-                    {route.startPoint}
-                  </Text>
-                  <Text className="mt-1 text-sm text-slate-500">
-                    {PERIOD_LABEL[route.period]} · {route.startTime} às{' '}
-                    {route.endTime}
-                  </Text>
-                  <Text className="mt-2 text-sm font-semibold text-brand">
-                    {school?.name ?? 'Escola não encontrada'}
-                  </Text>
+                className="mb-3 rounded-2xl border border-slate-200 bg-white p-4">
+                <View className="flex-row items-start">
+                  <View className="flex-1 pr-2">
+                    <Text className="text-lg font-bold text-slate-900">
+                      {route.title}
+                    </Text>
+                    <Text className="mt-1 text-sm font-semibold text-brand">
+                      {route.direction} · {PERIOD_LABEL[route.period]}
+                    </Text>
+                    <Text className="mt-1 text-sm text-slate-500">
+                      {route.startPoint} · {route.startTime} às {route.endTime}
+                    </Text>
+                    <Text className="mt-1 text-sm text-slate-600">{schoolName}</Text>
+                  </View>
+                  <Pressable
+                    onPress={() => handleEdit(route.id)}
+                    hitSlop={8}
+                    className="h-10 w-10 items-center justify-center">
+                    <Feather name="edit-2" size={20} color="#0F6B4D" />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => handleDelete(route)}
+                    hitSlop={8}
+                    className="h-10 w-10 items-center justify-center">
+                    <Feather name="trash-2" size={20} color="#DC2626" />
+                  </Pressable>
                 </View>
-                <Pressable
-                  onPress={() => handleEdit(route.id)}
-                  hitSlop={8}
-                  className="h-10 w-10 items-center justify-center">
-                  <Feather name="edit-2" size={20} color="#0F6B4D" />
-                </Pressable>
-                <Pressable
-                  onPress={() => handleDelete(route)}
-                  hitSlop={8}
-                  className="h-10 w-10 items-center justify-center">
-                  <Feather name="trash-2" size={20} color="#DC2626" />
-                </Pressable>
+                <RouteTimeline
+                  startPoint={route.startPoint}
+                  streets={route.streetsCovered}
+                  schoolName={schoolName}
+                />
               </View>
             );
           })

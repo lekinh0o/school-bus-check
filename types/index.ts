@@ -20,12 +20,17 @@ export type School = {
   phone: string;
   studentIds: string[];
   routeIds: string[];
+  photoUri?: string;
 };
 
 export type RoutePeriod = 'Manha' | 'Tarde' | 'Noite';
 
+export type RouteDirection = 'IDA' | 'VOLTA';
+
 export type Route = {
   id: string;
+  title: string;
+  direction: RouteDirection;
   responsible: string;
   monitor: string;
   startPoint: string;
@@ -34,6 +39,7 @@ export type Route = {
   startTime: string;
   endTime: string;
   period: RoutePeriod;
+  responsiblePhotoUri?: string;
 };
 
 export type Student = {
@@ -48,4 +54,5 @@ export type Student = {
   boardingStreet: string;
   vehicleId: string;
   seatNumber: number;
+  photoUri?: string;
 };

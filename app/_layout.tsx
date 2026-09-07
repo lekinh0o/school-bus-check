@@ -73,6 +73,7 @@ export default function RootLayout() {
               <Stack.Screen name="vehicles" />
               <Stack.Screen name="schools" />
               <Stack.Screen name="routes" />
+              <Stack.Screen name="students" />
             </Stack>
             <StatusBar style="auto" />
           </ThemeProvider>

@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { removeSchool, selectAllSchools } from '@/store/schoolSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
@@ -49,6 +49,16 @@ export default function SchoolsListScreen() {
             <View
               key={school.id}
               className="mb-3 flex-row items-center rounded-2xl border border-slate-200 bg-white p-4">
+              {school.photoUri ? (
+                <Image
+                  source={{ uri: school.photoUri }}
+                  className="mr-3 h-14 w-14 rounded-xl bg-slate-200"
+                />
+              ) : (
+                <View className="mr-3 h-14 w-14 items-center justify-center rounded-xl bg-slate-100">
+                  <Feather name="home" size={20} color="#94A3B8" />
+                </View>
+              )}
               <View className="flex-1 pr-2">
                 <Text className="text-lg font-bold text-slate-900">{school.name}</Text>
                 <Text className="mt-1 text-sm text-slate-500">

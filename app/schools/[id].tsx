@@ -1,6 +1,7 @@
 import { type Href, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,6 +13,8 @@ import {
 
 import { addSchool, selectSchoolById, updateSchool } from '@/store/schoolSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
+import { formatPhoneBr, isValidPhoneBr } from '@/lib/inputMasks';
+import { pickLocalImage } from '@/lib/pickImage';
 
 export default function SchoolFormScreen() {
   const router = useRouter();
@@ -27,6 +30,7 @@ export default function SchoolFormScreen() {
   const [address, setAddress] = useState('');
   const [principal, setPrincipal] = useState('');
   const [phone, setPhone] = useState('');
+  const [photoUri, setPhotoUri] = useState<string | undefined>();
 
   useEffect(() => {
     if (!existing) {
@@ -35,14 +39,22 @@ export default function SchoolFormScreen() {
     setName(existing.name);
     setAddress(existing.address);
     setPrincipal(existing.principal);
-    setPhone(existing.phone);
+    setPhone(formatPhoneBr(existing.phone));
+    setPhotoUri(existing.photoUri);
   }, [existing]);
 
   const canSubmit =
     name.trim().length > 0 &&
     address.trim().length > 0 &&
     principal.trim().length > 0 &&
-    phone.trim().length > 0;
+    isValidPhoneBr(phone);
+
+  async function handlePickPhoto() {
+    const uri = await pickLocalImage([4, 3]);
+    if (uri) {
+      setPhotoUri(uri);
+    }
+  }
 
   function handleSubmit() {
     if (!canSubmit) {
@@ -53,7 +65,8 @@ export default function SchoolFormScreen() {
       name: name.trim(),
       address: address.trim(),
       principal: principal.trim(),
-      phone: phone.trim(),
+      phone: formatPhoneBr(phone),
+      photoUri,
     };
 
     if (isCreate) {
@@ -92,6 +105,21 @@ export default function SchoolFormScreen() {
         className="flex-1"
         contentContainerClassName="p-5 pb-10"
         keyboardShouldPersistTaps="handled">
+        {photoUri ? (
+          <Image
+            source={{ uri: photoUri }}
+            className="mb-4 h-40 w-full rounded-2xl bg-slate-200"
+            resizeMode="cover"
+          />
+        ) : null}
+        <Pressable
+          onPress={handlePickPhoto}
+          className="mb-4 items-center rounded-2xl border border-brand bg-brand-light py-4">
+          <Text className="text-base font-semibold text-brand-dark">
+            Adicionar Foto da Escola
+          </Text>
+        </Pressable>
+
         <Text className="mb-2 text-sm font-semibold text-slate-700">Nome</Text>
         <TextInput
           value={name}
@@ -128,9 +156,9 @@ export default function SchoolFormScreen() {
         </Text>
         <TextInput
           value={phone}
-          onChangeText={setPhone}
+          onChangeText={(value) => setPhone(formatPhoneBr(value))}
           keyboardType="phone-pad"
-          placeholder="(00) 00000-0000"
+          placeholder="(31) 99999-9999"
           placeholderTextColor="#94A3B8"
           className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
         />
