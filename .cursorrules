@@ -1,0 +1,43 @@
+# School Bus Check — contexto do projeto
+
+Consulte este arquivo e `store/attendanceSlice.ts` antes de alterar estado, fluxos de presença ou arquitetura. Não peça ao usuário para reexplicar as regras de negócio.
+
+## Arquitetura
+
+- React Native + Expo SDK 57, TypeScript, Expo Router (`app/`).
+- Estilo: NativeWind 4 + Tailwind CSS 3 (`className`, `global.css`, `tailwind.config.js`).
+- Estado: Redux Toolkit em `store/store.ts`. Entidades relacionais (persistência local, `createEntityAdapter`): `vehicleSlice`, `schoolSlice`, `routeSlice`, `studentSlice`. Presença diária: `attendanceSlice.ts`.
+- Tipos de domínio em `types/index.ts` (`Vehicle`, `School`, `Route`, `Student`). Tipos de chamada em `types/attendance.ts` (não confundir o `Student` legado da chamada com o `Student` de domínio).
+- UI de chamada lê presença via `hooks/useAttendance.tsx`. Não crie Context paralelo para presença nem para entidades.
+- Autenticação atual é fictícia (`hooks/useAuth.tsx`).
+
+## Regras de negócio (presença)
+
+Estado de manhã e tarde é independente. Ausência interrompe o trecho daquele turno.
+
+Manhã (ida) — `shift: 'morning'`, campo `morning`:
+- `boarding_home` — Ida (Ingresso): aluno entrou na van na porta de casa.
+- `absent_morning` — Ida (Ausente): não vai de van hoje (aviso prévio).
+- `school_dropoff` — Escola (Desembarque): saiu do veículo e entrou na escola.
+
+Tarde (volta) — `shift: 'afternoon'`, campo `afternoon`:
+- `boarding_school` — Volta (Ingresso): embarcou na saída da escola.
+- `absent_afternoon` — Volta (Ausente): volta por outros meios (ex.: pais buscaram).
+- `home_dropoff` — Volta (Desembarque): entregue no destino/casa.
+
+Fluxo típico com van: manhã ingresso → desembarque na escola; tarde ingresso → desembarque em casa.
+
+## Estado (RTK) — obrigatório
+
+Antes de alterar entidades (veículo, escola, rota, aluno), leia o slice correspondente em `store/` e `types/index.ts`. Antes de alterar presença diária, leia `store/attendanceSlice.ts`.
+
+- Entidades: CRUD `addOne`/`updateOne`/`removeOne` (exportados como `addVehicle`, `addSchool`, etc.). Veículo: `assignSeat`, `removeSeat`. Rota: `addStreetToRoute`. Selectors: `*Selectors.selectAll` / `selectById`.
+- Presença: `setShift`, `setMorningStatus`, `setAfternoonStatus`. Labels em `constants/attendance.ts`.
+- Dados 100% serializáveis (sem Date/Map/Set/funções) para persistência offline futura.
+- Provider: `app/_layout.tsx` envolve a árvore com `<Provider store={store}>`.
+
+## Código
+
+- Componentes funcionais + TypeScript estrito.
+- Telas em `app/`, UI reutilizável em `components/` (`StudentCard`, `StatusButtons`).
+- Não invente backend; persistência ainda não existe.
