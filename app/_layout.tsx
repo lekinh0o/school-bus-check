@@ -71,6 +71,7 @@ export default function RootLayout() {
               <Stack.Screen name="(auth)" />
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="vehicles" />
+              <Stack.Screen name="schools" />
             </Stack>
             <StatusBar style="auto" />
           </ThemeProvider>
