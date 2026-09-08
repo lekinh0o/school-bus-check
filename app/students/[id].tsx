@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { SeatMapPicker } from '@/components/SeatMapPicker';
+import { BusSeatMap } from '@/components/BusSeatMap';
 import { selectAllRoutes, selectRouteById, updateRoute } from '@/store/routeSlice';
 import { selectAllSchools, updateSchool } from '@/store/schoolSlice';
 import {
@@ -39,6 +39,39 @@ function withId(ids: string[], id: string): string[] {
 
 function withoutId(ids: string[], id: string): string[] {
   return ids.filter((item) => item !== id);
+}
+
+function FieldLabel({ children }: { children: string }) {
+  return (
+    <Text className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      {children}
+    </Text>
+  );
+}
+
+function ChoiceChip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`rounded-full border px-3 py-2 ${
+        selected ? 'border-brand bg-brand-light' : 'border-slate-200 bg-white'
+      }`}>
+      <Text
+        className={`text-sm font-semibold ${
+          selected ? 'text-brand-dark' : 'text-slate-700'
+        }`}>
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
 
 export default function StudentFormScreen() {
@@ -256,158 +289,144 @@ export default function StudentFormScreen() {
       />
       <ScrollView
         className="flex-1"
-        contentContainerClassName="p-5 pb-10"
+        contentContainerClassName="p-4 pb-10"
         keyboardShouldPersistTaps="handled">
-        {photoUri ? (
-          <Image
-            source={{ uri: photoUri }}
-            className="mb-4 h-24 w-24 self-center rounded-full bg-slate-200"
-          />
-        ) : null}
-        <Pressable
-          onPress={handlePickPhoto}
-          className="mb-4 items-center rounded-2xl border border-brand bg-brand-light py-4">
-          <Text className="text-base font-semibold text-brand-dark">Foto do Aluno</Text>
-        </Pressable>
+        <View className="mb-4 flex-row items-center">
+          {photoUri ? (
+            <Image
+              source={{ uri: photoUri }}
+              className="mr-3 h-16 w-16 rounded-full bg-slate-200"
+            />
+          ) : (
+            <View className="mr-3 h-16 w-16 items-center justify-center rounded-full bg-slate-200">
+              <Text className="text-lg text-slate-400">+</Text>
+            </View>
+          )}
+          <Pressable
+            onPress={handlePickPhoto}
+            className="flex-1 items-center rounded-xl border border-brand bg-brand-light py-3">
+            <Text className="text-sm font-semibold text-brand-dark">
+              Foto do aluno
+            </Text>
+          </Pressable>
+        </View>
 
-        <Text className="mb-2 text-sm font-semibold text-slate-700">Nome</Text>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="Nome completo"
-          placeholderTextColor="#94A3B8"
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
-        />
+        <Text className="mb-3 text-sm font-bold text-slate-900">Dados</Text>
+        <View className="mb-3 flex-row gap-2">
+          <View className="flex-1">
+            <FieldLabel>Nome</FieldLabel>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              placeholder="Nome completo"
+              placeholderTextColor="#94A3B8"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-base text-slate-900"
+            />
+          </View>
+          <View className="w-20">
+            <FieldLabel>Idade</FieldLabel>
+            <TextInput
+              value={ageInput}
+              onChangeText={(value) =>
+                setAgeInput(value.replace(/[^\d]/g, '').slice(0, 2))
+              }
+              keyboardType="number-pad"
+              placeholder="8"
+              placeholderTextColor="#94A3B8"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-base text-slate-900"
+            />
+          </View>
+        </View>
 
-        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">Idade</Text>
-        <TextInput
-          value={ageInput}
-          onChangeText={(value) => setAgeInput(value.replace(/[^\d]/g, '').slice(0, 2))}
-          keyboardType="number-pad"
-          placeholder="8"
-          placeholderTextColor="#94A3B8"
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
-        />
-
-        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
-          Responsável
-        </Text>
+        <FieldLabel>Responsável</FieldLabel>
         <TextInput
           value={responsible}
           onChangeText={setResponsible}
           placeholder="Nome do responsável"
           placeholderTextColor="#94A3B8"
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
+          className="mb-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-base text-slate-900"
         />
 
-        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
-          Telefone 1
-        </Text>
-        <TextInput
-          value={phone1}
-          onChangeText={(value) => setPhone1(formatPhoneBr(value))}
-          keyboardType="phone-pad"
-          placeholder="(31) 99999-9999"
-          placeholderTextColor="#94A3B8"
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
-        />
+        <View className="mb-3 flex-row gap-2">
+          <View className="flex-1">
+            <FieldLabel>Telefone 1</FieldLabel>
+            <TextInput
+              value={phone1}
+              onChangeText={(value) => setPhone1(formatPhoneBr(value))}
+              keyboardType="phone-pad"
+              placeholder="(31) 99999-9999"
+              placeholderTextColor="#94A3B8"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-base text-slate-900"
+            />
+          </View>
+          <View className="flex-1">
+            <FieldLabel>Telefone 2</FieldLabel>
+            <TextInput
+              value={phone2}
+              onChangeText={(value) => setPhone2(formatPhoneBr(value))}
+              keyboardType="phone-pad"
+              placeholder="(31) 3333-3333"
+              placeholderTextColor="#94A3B8"
+              className="rounded-xl border border-slate-200 bg-white px-3 py-3 text-base text-slate-900"
+            />
+          </View>
+        </View>
 
-        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
-          Telefone 2
-        </Text>
-        <TextInput
-          value={phone2}
-          onChangeText={(value) => setPhone2(formatPhoneBr(value))}
-          keyboardType="phone-pad"
-          placeholder="(31) 3333-3333"
-          placeholderTextColor="#94A3B8"
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
-        />
-
-        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
-          Série / Ano
-        </Text>
+        <FieldLabel>Série / Ano</FieldLabel>
         <TextInput
           value={grade}
           onChangeText={setGrade}
           placeholder="5º ano"
           placeholderTextColor="#94A3B8"
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
+          className="mb-5 rounded-xl border border-slate-200 bg-white px-3 py-3 text-base text-slate-900"
         />
 
-        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">Escola</Text>
-        {schools.map((school) => {
-          const selected = schoolId === school.id;
-          return (
-            <Pressable
+        <Text className="mb-3 text-sm font-bold text-slate-900">Transporte</Text>
+        <FieldLabel>Escola</FieldLabel>
+        <View className="mb-3 flex-row flex-wrap gap-2">
+          {schools.map((school) => (
+            <ChoiceChip
               key={school.id}
+              label={school.name}
+              selected={schoolId === school.id}
               onPress={() => handleSelectSchool(school.id)}
-              className={`mb-2 rounded-2xl border px-4 py-4 ${
-                selected ? 'border-brand bg-brand-light' : 'border-slate-200 bg-white'
-              }`}>
-              <Text
-                className={`text-base font-semibold ${
-                  selected ? 'text-brand-dark' : 'text-slate-900'
-                }`}>
-                {school.name}
-              </Text>
-            </Pressable>
-          );
-        })}
+            />
+          ))}
+        </View>
 
-        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">Rota</Text>
+        <FieldLabel>Rota</FieldLabel>
         {!schoolId ? (
-          <Text className="text-sm text-slate-500">Escolha uma escola primeiro.</Text>
+          <Text className="mb-3 text-sm text-slate-500">
+            Escolha uma escola primeiro.
+          </Text>
         ) : routesForSchool.length === 0 ? (
-          <Text className="text-sm text-slate-500">
+          <Text className="mb-3 text-sm text-slate-500">
             Esta escola ainda não tem rotas cadastradas.
           </Text>
         ) : (
-          routesForSchool.map((route) => {
-            const selected = routeId === route.id;
-            return (
-              <Pressable
+          <View className="mb-3 flex-row flex-wrap gap-2">
+            {routesForSchool.map((route) => (
+              <ChoiceChip
                 key={route.id}
+                label={route.title}
+                selected={routeId === route.id}
                 onPress={() => handleSelectRoute(route.id)}
-                className={`mb-2 rounded-2xl border px-4 py-4 ${
-                  selected ? 'border-brand bg-brand-light' : 'border-slate-200 bg-white'
-                }`}>
-                <Text
-                  className={`text-base font-semibold ${
-                    selected ? 'text-brand-dark' : 'text-slate-900'
-                  }`}>
-                  {route.title}
-                </Text>
-              </Pressable>
-            );
-          })
+              />
+            ))}
+          </View>
         )}
 
-        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
-          Rua de embarque
-        </Text>
+        <FieldLabel>Rua de embarque</FieldLabel>
         {selectedRoute && selectedRoute.streetsCovered.length > 0 ? (
-          <View className="mb-3 flex-row flex-wrap gap-2">
-            {selectedRoute.streetsCovered.map((street) => {
-              const selected = boardingStreet.trim() === street;
-              return (
-                <Pressable
-                  key={street}
-                  onPress={() => setBoardingStreet(street)}
-                  className={`rounded-full border px-3 py-2 ${
-                    selected
-                      ? 'border-brand bg-brand-light'
-                      : 'border-slate-200 bg-white'
-                  }`}>
-                  <Text
-                    className={`text-sm font-semibold ${
-                      selected ? 'text-brand-dark' : 'text-slate-700'
-                    }`}>
-                    {street}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          <View className="mb-2 flex-row flex-wrap gap-2">
+            {selectedRoute.streetsCovered.map((street) => (
+              <ChoiceChip
+                key={street}
+                label={street}
+                selected={boardingStreet.trim() === street}
+                onPress={() => setBoardingStreet(street)}
+              />
+            ))}
           </View>
         ) : null}
         <TextInput
@@ -415,39 +434,29 @@ export default function StudentFormScreen() {
           onChangeText={setBoardingStreet}
           placeholder="Digite a rua ou toque numa sugestão"
           placeholderTextColor="#94A3B8"
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
+          className="mb-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-base text-slate-900"
         />
 
-        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">Veículo</Text>
-        {vehicles.map((vehicle) => {
-          const selected = vehicleId === vehicle.id;
-          return (
-            <Pressable
+        <FieldLabel>Veículo</FieldLabel>
+        <View className="mb-3 flex-row flex-wrap gap-2">
+          {vehicles.map((vehicle) => (
+            <ChoiceChip
               key={vehicle.id}
+              label={vehicle.plate}
+              selected={vehicleId === vehicle.id}
               onPress={() => handleSelectVehicle(vehicle.id)}
-              className={`mb-2 rounded-2xl border px-4 py-4 ${
-                selected ? 'border-brand bg-brand-light' : 'border-slate-200 bg-white'
-              }`}>
-              <Text
-                className={`text-base font-semibold ${
-                  selected ? 'text-brand-dark' : 'text-slate-900'
-                }`}>
-                {vehicle.plate}
-              </Text>
-            </Pressable>
-          );
-        })}
+            />
+          ))}
+        </View>
 
         {selectedVehicle ? (
-          <View className="mt-4">
-            <Text className="mb-3 text-center text-sm font-semibold text-slate-700">
-              Mapa de assentos
-            </Text>
-            <SeatMapPicker
+          <View className="mb-2">
+            <FieldLabel>Assento</FieldLabel>
+            <BusSeatMap
               seatsMap={selectedVehicle.seatsMap}
               selectedSeat={seatNumber}
               currentStudentId={isCreate ? undefined : id}
-              onSelect={setSeatNumber}
+              onSelectSeat={setSeatNumber}
             />
           </View>
         ) : null}
@@ -455,16 +464,15 @@ export default function StudentFormScreen() {
         <Pressable
           disabled={!canSubmit}
           onPress={handleSubmit}
-          className={`mt-8 items-center rounded-2xl py-5 ${
+          className={`mt-5 items-center rounded-2xl py-4 ${
             canSubmit ? 'bg-brand' : 'bg-slate-300'
           }`}>
-          <Text className="text-lg font-bold text-white">Salvar</Text>
+          <Text className="text-base font-bold text-white">Salvar</Text>
         </Pressable>
         {!canSubmit ? (
           <Text className="mt-3 text-center text-sm text-slate-500">
             Falta preencher: {missingFields.join(', ')}. Telefones precisam de
-            DDD e pelo menos 10 dígitos. Escolha um assento livre no mapa após
-            o veículo.
+            DDD e pelo menos 10 dígitos. Escolha um assento verde no mapa.
           </Text>
         ) : null}
       </ScrollView>

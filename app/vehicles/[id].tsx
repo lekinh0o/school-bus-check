@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { SeatMapPicker } from '@/components/SeatMapPicker';
+import { BusSeatMap } from '@/components/BusSeatMap';
 import { addVehicle, selectVehicleById, updateVehicle } from '@/store/vehicleSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { SeatAssignment, Vehicle } from '@/types';
@@ -185,7 +185,7 @@ export default function VehicleFormScreen() {
             <Text className="mb-3 text-center text-sm font-semibold text-slate-700">
               Mapa de assentos · {occupiedCount} ocupados de {seatCount}
             </Text>
-            <SeatMapPicker seatsMap={previewSeats} />
+            <BusSeatMap seatsMap={previewSeats} />
           </View>
         ) : null}
 

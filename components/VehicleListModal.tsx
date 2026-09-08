@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { SeatMapPicker } from '@/components/SeatMapPicker';
+import { BusSeatMap } from '@/components/BusSeatMap';
 import { removeVehicle, selectAllVehicles } from '@/store/vehicleSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { Vehicle } from '@/types';
@@ -147,7 +147,7 @@ export function VehicleListModal({
                     </Pressable>
                     {vehicle.seatsMap?.length ? (
                       <View className="mt-3">
-                        <SeatMapPicker seatsMap={vehicle.seatsMap} />
+                        <BusSeatMap seatsMap={vehicle.seatsMap} />
                       </View>
                     ) : null}
                   </View>
