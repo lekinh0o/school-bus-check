@@ -8,6 +8,7 @@ import {
   RouteTimeline,
 } from '@/components/RouteTimeline';
 import { formatDuration, formatTripDate } from '@/lib/formatTrip';
+import { formatRouteTimeWindow } from '@/lib/routeSchedule';
 import { selectExecutionHistory } from '@/store/attendanceSlice';
 import { selectAllRoutes } from '@/store/routeSlice';
 import { useAppSelector } from '@/store/store';
@@ -53,7 +54,13 @@ export default function HomeScreen() {
                 {PERIOD_LABEL[route.period]}
               </Text>
               <Text className="mt-1 text-sm text-slate-500">
-                {route.startPoint} · {route.startTime} às {route.endTime}
+                {route.startPoint}
+              </Text>
+              <Text className="mt-1 text-sm text-slate-500">
+                Ida {formatRouteTimeWindow(route, 'IDA')}
+              </Text>
+              <Text className="mt-1 text-sm text-slate-500">
+                Volta {formatRouteTimeWindow(route, 'VOLTA')}
               </Text>
               <Text className="mt-1 text-sm text-slate-600">{schoolName}</Text>
               <RouteTimeline

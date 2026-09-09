@@ -172,12 +172,56 @@ const migrations: MigrationManifest = {
       },
     };
   },
+  5: (state: PersistedState) => {
+    if (!state || typeof state !== 'object') {
+      return state;
+    }
+
+    const root = state as PersistedState & { routes?: PersistedEntitySlice };
+    const routes = root.routes;
+    if (!routes?.entities) {
+      return state;
+    }
+
+    const asHhMm = (value: unknown, fallback: string): string =>
+      typeof value === 'string' && value.length > 0 ? value : fallback;
+
+    const entities = { ...routes.entities };
+    for (const id of Object.keys(entities)) {
+      const route = entities[id];
+      if (!route) {
+        continue;
+      }
+      const {
+        startTime,
+        endTime,
+        ...rest
+      } = route;
+      const legacyStart = typeof startTime === 'string' ? startTime : '';
+      const legacyEnd = typeof endTime === 'string' ? endTime : '';
+      entities[id] = {
+        ...rest,
+        departureTimeIda: asHhMm(rest.departureTimeIda, legacyStart),
+        arrivalTimeIda: asHhMm(rest.arrivalTimeIda, legacyEnd),
+        departureTimeVolta: asHhMm(rest.departureTimeVolta, legacyStart),
+        arrivalTimeVolta: asHhMm(rest.arrivalTimeVolta, legacyEnd),
+      };
+    }
+
+    return {
+      ...root,
+      routes: {
+        ...routes,
+        entities,
+      },
+    };
+  },
 };
 
 const persistConfig = {
   key: 'root',
   storage,
-  version: 4,
+  version: 5,
   timeout: 0,
   migrate: createMigrate(migrations, { debug: false }),
 };

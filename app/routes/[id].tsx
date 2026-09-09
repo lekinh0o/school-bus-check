@@ -48,8 +48,10 @@ export default function RouteFormScreen() {
   const [responsible, setResponsible] = useState('');
   const [monitor, setMonitor] = useState('');
   const [startPoint, setStartPoint] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [departureTimeIda, setDepartureTimeIda] = useState('');
+  const [arrivalTimeIda, setArrivalTimeIda] = useState('');
+  const [departureTimeVolta, setDepartureTimeVolta] = useState('');
+  const [arrivalTimeVolta, setArrivalTimeVolta] = useState('');
   const [period, setPeriod] = useState<RoutePeriod | null>(null);
   const [schoolId, setSchoolId] = useState('');
   const [boardingPoints, setBoardingPoints] = useState<string[]>([]);
@@ -66,8 +68,10 @@ export default function RouteFormScreen() {
     setResponsible(existing.responsible);
     setMonitor(existing.monitor);
     setStartPoint(existing.startPoint);
-    setStartTime(existing.startTime);
-    setEndTime(existing.endTime);
+    setDepartureTimeIda(existing.departureTimeIda);
+    setArrivalTimeIda(existing.arrivalTimeIda);
+    setDepartureTimeVolta(existing.departureTimeVolta);
+    setArrivalTimeVolta(existing.arrivalTimeVolta);
     setPeriod(existing.period);
     setSchoolId(existing.schoolId);
     setBoardingPoints(existing.boardingPoints);
@@ -79,8 +83,10 @@ export default function RouteFormScreen() {
     responsible.trim().length > 0 &&
     monitor.trim().length > 0 &&
     startPoint.trim().length > 0 &&
-    isValidHhMm(startTime) &&
-    isValidHhMm(endTime) &&
+    isValidHhMm(departureTimeIda) &&
+    isValidHhMm(arrivalTimeIda) &&
+    isValidHhMm(departureTimeVolta) &&
+    isValidHhMm(arrivalTimeVolta) &&
     period !== null &&
     schoolId.length > 0;
 
@@ -129,8 +135,10 @@ export default function RouteFormScreen() {
       startPoint: startPoint.trim(),
       boardingPoints,
       schoolId,
-      startTime: startTime.trim(),
-      endTime: endTime.trim(),
+      departureTimeIda: departureTimeIda.trim(),
+      arrivalTimeIda: arrivalTimeIda.trim(),
+      departureTimeVolta: departureTimeVolta.trim(),
+      arrivalTimeVolta: arrivalTimeVolta.trim(),
       period,
       responsiblePhotoUri,
     };
@@ -255,27 +263,51 @@ export default function RouteFormScreen() {
         />
 
         <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
-          Horário de início
+          Turno da Ida
+        </Text>
+        <Text className="mb-2 text-xs text-slate-500">
+          Horário de início e término na escola
         </Text>
         <TextInput
-          value={startTime}
-          onChangeText={(value) => setStartTime(formatTimeInput(value))}
+          value={departureTimeIda}
+          onChangeText={(value) => setDepartureTimeIda(formatTimeInput(value))}
           keyboardType="number-pad"
-          placeholder="07:00"
+          placeholder="Início 06:00"
           placeholderTextColor="#94A3B8"
           className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
         />
+        <TextInput
+          value={arrivalTimeIda}
+          onChangeText={(value) => setArrivalTimeIda(formatTimeInput(value))}
+          keyboardType="number-pad"
+          placeholder="Término na escola 07:10"
+          placeholderTextColor="#94A3B8"
+          className="mt-2 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
+        />
 
         <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
-          Horário de fim
+          Turno da Volta
+        </Text>
+        <Text className="mb-2 text-xs text-slate-500">
+          Horário de início na escola e término
         </Text>
         <TextInput
-          value={endTime}
-          onChangeText={(value) => setEndTime(formatTimeInput(value))}
+          value={departureTimeVolta}
+          onChangeText={(value) =>
+            setDepartureTimeVolta(formatTimeInput(value))
+          }
           keyboardType="number-pad"
-          placeholder="08:30"
+          placeholder="Início na escola 11:00"
           placeholderTextColor="#94A3B8"
           className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
+        />
+        <TextInput
+          value={arrivalTimeVolta}
+          onChangeText={(value) => setArrivalTimeVolta(formatTimeInput(value))}
+          keyboardType="number-pad"
+          placeholder="Término 12:10"
+          placeholderTextColor="#94A3B8"
+          className="mt-2 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
         />
 
         <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
