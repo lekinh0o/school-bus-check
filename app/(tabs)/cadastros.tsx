@@ -35,7 +35,7 @@ const MENU = [
   {
     key: 'students',
     title: 'Alunos',
-    hint: 'Vínculos, ruas e assentos',
+    hint: 'Vínculos, pontos e assentos',
     icon: 'users',
     enabled: true,
   },

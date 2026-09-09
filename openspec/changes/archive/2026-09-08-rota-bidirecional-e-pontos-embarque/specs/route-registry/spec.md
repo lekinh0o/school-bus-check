@@ -1,17 +1,4 @@
-# route-registry Specification
-
-## Purpose
-
-Permite cadastrar, listar, editar e excluir rotas de transporte escolar, vinculando cada rota a uma escola já cadastrada e mantendo a lista de pontos de embarque, a partir do dashboard de Cadastros.
-
-## Requirements
-
-### Requirement: Acesso às rotas a partir de Cadastros
-O sistema SHALL permitir que o usuário abra a listagem de rotas a partir do card Rotas no dashboard de Cadastros.
-
-#### Scenario: Card Rotas habilitado
-- **WHEN** o usuário está em Cadastros e toca o card Rotas
-- **THEN** o sistema navega para a tela de listagem de rotas
+## MODIFIED Requirements
 
 ### Requirement: Listagem de rotas cadastradas
 O sistema SHALL exibir todas as rotas persistidas. Cada item MUST mostrar o título, o ponto de início, o período, o intervalo de horário e o nome da escola de destino resolvido pelo vínculo da rota, além da timeline do percurso na ordem cadastrada (ponto inicial → pontos de embarque → escola). O cadastro MUST NOT exibir um sentido persistido IDA/VOLTA.
@@ -54,17 +41,6 @@ O sistema SHALL permitir abrir uma rota existente no formulário, com os campos,
 - **WHEN** o usuário altera campos, pontos, ordem dos pontos ou escola e salva
 - **THEN** o sistema atualiza a rota, ajusta os vínculos nas escolas quando a escola muda, e retorna à tela anterior
 
-### Requirement: Excluir rota
-O sistema SHALL exigir confirmação explícita antes de excluir uma rota. Após confirmação, a rota MUST ser removida da listagem e o identificador MUST ser retirado da lista de rotas da escola vinculada.
-
-#### Scenario: Cancelar exclusão
-- **WHEN** o usuário inicia exclusão e cancela na confirmação
-- **THEN** a rota permanece cadastrada e o vínculo na escola não muda
-
-#### Scenario: Confirmar exclusão
-- **WHEN** o usuário confirma a exclusão
-- **THEN** a rota deixa de aparecer na listagem e deixa de contar como rota vinculada na escola
-
 ### Requirement: Lista dinâmica de ruas no formulário
 O sistema SHALL permitir adicionar pontos de embarque pelo nome, removê-los individualmente e reordenar (subir/descer) antes de salvar. Um ponto em branco MUST NOT ser adicionado. A ordem da lista MUST ser a ordem persistida em `boardingPoints`. Os rótulos da interface MUST usar “Ponto de embarque”, não “rua”.
 
@@ -98,13 +74,6 @@ O sistema SHALL exigir um título da rota na criação e na edição. O sistema 
 #### Scenario: Sem título ou sentido
 - **WHEN** o título está vazio
 - **THEN** o sistema MUST NOT persistir a rota
-
-### Requirement: Foto do responsável da rota
-O sistema SHALL permitir anexar uma foto opcional do responsável pela rota. Se houver foto, o formulário MUST exibi-la.
-
-#### Scenario: Anexar foto
-- **WHEN** o usuário escolhe uma imagem e salva a rota
-- **THEN** a rota persistida guarda a referência da foto do responsável
 
 ### Requirement: Timeline horizontal do percurso
 O sistema SHALL exibir, na listagem de rotas, uma timeline horizontal com o ponto inicial, os pontos de embarque na ordem persistida e a escola de destino (ou indicação se a escola não existir), em scroll horizontal.

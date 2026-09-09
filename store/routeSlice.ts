@@ -19,22 +19,22 @@ const routeSlice = createSlice({
     addOne: routesAdapter.addOne,
     updateOne: routesAdapter.updateOne,
     removeOne: routesAdapter.removeOne,
-    addStreetToRoute(
+    addBoardingPointToRoute(
       state,
-      action: PayloadAction<{ routeId: string; streetName: string }>,
+      action: PayloadAction<{ routeId: string; pointName: string }>,
     ) {
-      const { routeId, streetName } = action.payload;
+      const { routeId, pointName } = action.payload;
       const route = state.entities[routeId];
       if (!route) {
         return;
       }
 
-      const normalized = streetName.trim();
-      if (!normalized || route.streetsCovered.includes(normalized)) {
+      const normalized = pointName.trim();
+      if (!normalized || route.boardingPoints.includes(normalized)) {
         return;
       }
 
-      route.streetsCovered.push(normalized);
+      route.boardingPoints.push(normalized);
     },
   },
 });
@@ -43,7 +43,7 @@ export const {
   addOne: addRoute,
   updateOne: updateRoute,
   removeOne: removeRoute,
-  addStreetToRoute,
+  addBoardingPointToRoute,
 } = routeSlice.actions;
 
 export const routeSelectors = routesAdapter.getSelectors(
