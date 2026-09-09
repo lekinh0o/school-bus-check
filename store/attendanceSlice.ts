@@ -118,7 +118,10 @@ const attendanceSlice = createSlice({
       } = action.payload;
       const attendances: ActiveExecution['attendances'] = {};
       for (const student of students) {
-        const boardingPoint = student.boardingPoint.trim();
+        const boardingPoint =
+          typeof student.boardingPoint === 'string'
+            ? student.boardingPoint.trim()
+            : '';
         if (!boardingPoint) {
           continue;
         }
@@ -183,7 +186,7 @@ const attendanceSlice = createSlice({
         computeIsPointComplete(execution) &&
         !isLastExecutionPoint(execution)
       ) {
-        const token = execution.pointsList[execution.currentPointIndex];
+        const token = (execution.pointsList ?? [])[execution.currentPointIndex];
         if (token) {
           appendPointLog(execution, token, 'COMPLETED');
         }
@@ -198,7 +201,7 @@ const attendanceSlice = createSlice({
       if (isLastExecutionPoint(execution) || !computeIsPointComplete(execution)) {
         return;
       }
-      const token = execution.pointsList[execution.currentPointIndex];
+      const token = (execution.pointsList ?? [])[execution.currentPointIndex];
       if (token) {
         appendPointLog(execution, token, 'COMPLETED');
       }
@@ -222,7 +225,7 @@ const attendanceSlice = createSlice({
       if (isLastExecutionPoint(execution) || isDropoffStop(execution)) {
         return;
       }
-      const token = execution.pointsList[execution.currentPointIndex];
+      const token = (execution.pointsList ?? [])[execution.currentPointIndex];
       if (token) {
         execution.skippedPoints.push(token);
         appendPointLog(execution, token, 'SKIPPED');
@@ -237,7 +240,7 @@ const attendanceSlice = createSlice({
       if (hasPresentStudents(execution) || !isLastExecutionPoint(execution)) {
         return;
       }
-      const token = execution.pointsList[execution.currentPointIndex];
+      const token = (execution.pointsList ?? [])[execution.currentPointIndex];
       if (token) {
         appendPointLog(execution, token, 'COMPLETED');
       }
@@ -279,7 +282,7 @@ export const selectCurrentPointName = createSelector(
     if (!execution) {
       return '';
     }
-    const token = execution.pointsList[execution.currentPointIndex];
+    const token = (execution.pointsList ?? [])[execution.currentPointIndex];
     if (!token) {
       return '';
     }

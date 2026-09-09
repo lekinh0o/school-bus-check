@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export type AppAlertKind = 'info' | 'warning' | 'error';
 
@@ -49,7 +49,8 @@ export function AppAlert({ alert, onDismiss }: AppAlertProps) {
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onDismiss}>
       <Pressable
-        className="flex-1 items-center justify-center bg-black/40 px-6"
+        style={styles.backdrop}
+        className="items-center justify-center bg-black/40 px-6"
         onPress={onDismiss}>
         <Pressable
           onPress={() => undefined}
@@ -74,3 +75,9 @@ export function AppAlert({ alert, onDismiss }: AppAlertProps) {
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+  },
+});

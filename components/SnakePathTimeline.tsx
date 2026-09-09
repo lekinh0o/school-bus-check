@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import { useState } from 'react';
-import { Text, View } from 'react-native';
+import { Fragment } from 'react';
+import { Text, useWindowDimensions, View } from 'react-native';
 
 export type SnakeStopStatus = 'done' | 'current' | 'pending';
 export type StopKind = 'start' | 'boarding' | 'school';
@@ -15,25 +15,25 @@ export type SnakeStop = {
 
 const KIND_PALETTE: Record<
   StopKind,
-  { solid: string; light: string; icon: string; ring: string }
+  { solidBg: string; lightBg: string; icon: string; ring: string }
 > = {
   start: {
-    solid: 'bg-sky-600',
-    light: 'bg-sky-100',
+    solidBg: '#0284C7',
+    lightBg: '#E0F2FE',
     icon: '#0369A1',
-    ring: 'border-sky-700',
+    ring: '#0C4A6E',
   },
   boarding: {
-    solid: 'bg-amber-500',
-    light: 'bg-amber-100',
+    solidBg: '#F59E0B',
+    lightBg: '#FEF3C7',
     icon: '#B45309',
-    ring: 'border-amber-700',
+    ring: '#B45309',
   },
   school: {
-    solid: 'bg-violet-600',
-    light: 'bg-violet-100',
+    solidBg: '#7C3AED',
+    lightBg: '#EDE9FE',
     icon: '#6D28D9',
-    ring: 'border-violet-800',
+    ring: '#5B21B6',
   },
 };
 
@@ -48,26 +48,12 @@ function chunkStops(stops: SnakeStop[], cols: number): SnakeStop[][] {
 function nodeColors(kind: StopKind, status: SnakeStopStatus) {
   const palette = KIND_PALETTE[kind];
   if (status === 'current') {
-    return {
-      wrap: palette.solid,
-      icon: '#FFFFFF',
-      ring: `border-2 ${palette.ring}`,
-    };
+    return { bg: palette.solidBg, icon: '#FFFFFF', ring: palette.ring };
   }
   if (status === 'done') {
-    return { wrap: palette.light, icon: palette.icon, ring: '' };
+    return { bg: palette.lightBg, icon: palette.icon, ring: 'transparent' };
   }
-  return { wrap: 'bg-slate-200', icon: '#64748B', ring: '' };
-}
-
-function iconForKind(kind: StopKind): keyof typeof Feather.glyphMap {
-  if (kind === 'school') {
-    return 'home';
-  }
-  if (kind === 'start') {
-    return 'flag';
-  }
-  return 'map-pin';
+  return { bg: '#E2E8F0', icon: '#64748B', ring: 'transparent' };
 }
 
 type SnakePathTimelineProps = {
@@ -79,75 +65,89 @@ export function SnakePathTimeline({
   stops,
   compact = false,
 }: SnakePathTimelineProps) {
-  const [width, setWidth] = useState(0);
+  const { width: windowWidth } = useWindowDimensions();
   const node = compact ? 40 : 48;
   const minCell = compact ? 72 : 80;
-  const cols = Math.max(2, width > 0 ? Math.floor(width / minCell) : 4);
+  const cols = Math.max(2, Math.min(4, Math.floor((windowWidth - 48) / minCell)));
   const rows = chunkStops(stops, cols);
-  const cellW = width > 0 ? width / cols : minCell;
 
   return (
-    <View className="mt-2" onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
+    <View className="mt-2 w-full">
       {rows.map((row, rowIndex) => {
         const rtl = rowIndex % 2 === 1;
         const hasNext = rowIndex < rows.length - 1;
+        const emptySlots = cols - row.length;
         return (
           <View key={`row-${rowIndex}`}>
             <View className={rtl ? 'flex-row-reverse' : 'flex-row'}>
               {row.map((stop, index) => {
                 const colors = nodeColors(stop.kind, stop.status);
                 const last = index === row.length - 1;
-                const iconName = stop.icon || iconForKind(stop.kind);
                 return (
-                  <View
-                    key={stop.key}
-                    style={{ width: cellW }}
-                    className="items-center">
-                    <View
-                      className="w-full items-center justify-center"
-                      style={{ height: node }}>
-                      {last ? null : (
-                        <View
-                          className="absolute h-0.5 bg-slate-300"
-                          style={{
-                            top: node / 2 - 1,
-                            width: cellW,
-                            ...(rtl
-                              ? { right: cellW / 2 }
-                              : { left: cellW / 2 }),
-                          }}
-                        />
-                      )}
+                  <Fragment key={stop.key}>
+                    <View style={{ flex: 1 }} className="items-center">
                       <View
-                        className={`z-10 items-center justify-center rounded-full ${colors.wrap} ${colors.ring}`}
-                        style={{ height: node, width: node }}>
+                        className="items-center justify-center rounded-full"
+                        style={{
+                          height: node,
+                          width: node,
+                          backgroundColor: colors.bg,
+                          borderWidth: stop.status === 'current' ? 2 : 0,
+                          borderColor: colors.ring,
+                        }}>
                         <Feather
-                          name={iconName}
+                          name={stop.icon}
                           size={compact ? 16 : 22}
                           color={colors.icon}
                         />
                       </View>
+                      <Text
+                        className="mt-1 text-center font-semibold text-slate-700"
+                        style={{ fontSize: compact ? 10 : 11 }}
+                        numberOfLines={2}>
+                        {stop.label}
+                      </Text>
                     </View>
-                    <Text
-                      className="mt-1 text-center font-semibold text-slate-700"
-                      style={{ fontSize: compact ? 10 : 11, maxWidth: cellW - 4 }}
-                      numberOfLines={2}>
-                      {stop.label}
-                    </Text>
-                  </View>
+                    {last ? null : (
+                      <View
+                        className="bg-slate-300"
+                        style={{
+                          width: 10,
+                          height: 2,
+                          marginTop: node / 2 - 1,
+                        }}
+                      />
+                    )}
+                  </Fragment>
                 );
               })}
+              {emptySlots > 0
+                ? Array.from({ length: emptySlots }, (_, index) => (
+                    <View key={`pad-${index}`} style={{ flex: 1 }} />
+                  ))
+                : null}
             </View>
             {hasNext ? (
-              <View className="h-4 w-full">
-                <View
-                  className="absolute h-4 w-0.5 bg-slate-300"
-                  style={
-                    rtl
-                      ? { left: cellW / 2 - 1 }
-                      : { right: cellW / 2 - 1 }
-                  }
-                />
+              <View className="h-4 flex-row">
+                {rtl ? (
+                  <>
+                    <View style={{ flex: 1 }} className="items-center">
+                      <View className="h-4 w-0.5 bg-slate-300" />
+                    </View>
+                    {Array.from({ length: cols - 1 }, (_, index) => (
+                      <View key={`gap-${index}`} style={{ flex: 1 }} />
+                    ))}
+                  </>
+                ) : (
+                  <>
+                    {Array.from({ length: cols - 1 }, (_, index) => (
+                      <View key={`gap-${index}`} style={{ flex: 1 }} />
+                    ))}
+                    <View style={{ flex: 1 }} className="items-center">
+                      <View className="h-4 w-0.5 bg-slate-300" />
+                    </View>
+                  </>
+                )}
               </View>
             ) : null}
           </View>

@@ -17,10 +17,11 @@ export function buildRouteTimelineStops(
   schoolName: string,
   direction: RouteDirection = 'IDA',
 ): RouteTimelineStop[] {
+  const points = Array.isArray(boardingPoints) ? boardingPoints : [];
   if (direction === 'VOLTA') {
     return [
       { kind: 'school', label: schoolName },
-      ...[...boardingPoints].reverse().map((point) => ({
+      ...[...points].reverse().map((point) => ({
         kind: 'boarding' as const,
         label: point,
       })),
@@ -30,7 +31,7 @@ export function buildRouteTimelineStops(
 
   return [
     { kind: 'start', label: startPoint },
-    ...boardingPoints.map((point) => ({
+    ...points.map((point) => ({
       kind: 'boarding' as const,
       label: point,
     })),

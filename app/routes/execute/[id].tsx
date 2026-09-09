@@ -111,7 +111,7 @@ export default function ExecuteRouteScreen() {
     !lastPoint &&
     !hasBoardingMarks(
       session.attendances,
-      session.pointsList[session.currentPointIndex] ?? '',
+      session.pointsList?.[session.currentPointIndex] ?? '',
       session.schoolId,
       session.direction,
     );
@@ -146,7 +146,7 @@ export default function ExecuteRouteScreen() {
     if (!route || !session) {
       return [];
     }
-    return session.pointsList.map((token, index) => {
+    return (session.pointsList ?? []).map((token, index) => {
       const isSchool = token === session.schoolId;
       const isStart = token === route.startPoint;
       const done = index < session.currentPointIndex;
@@ -262,6 +262,17 @@ export default function ExecuteRouteScreen() {
             <Pressable
               onPress={() => {
                 if (lastPoint) {
+                  if (!canFinish) {
+                    setAlert({
+                      kind: 'error',
+                      title: 'Não é possível encerrar',
+                      message:
+                        'Ainda há aluno na van. Faça o desembarque de todos os presentes antes de encerrar a rota.',
+                    });
+                    return;
+                  }
+                  dispatch(finishRouteExecution());
+                  router.replace('/' as Href);
                   return;
                 }
                 if (!pointComplete) {
@@ -276,9 +287,17 @@ export default function ExecuteRouteScreen() {
                 dispatch(advanceToNextPoint());
               }}
               className={`flex-1 items-center rounded-2xl py-4 ${
-                pointComplete && !lastPoint ? 'bg-brand' : 'bg-slate-300'
+                lastPoint
+                  ? canFinish
+                    ? 'bg-brand'
+                    : 'bg-slate-300'
+                  : pointComplete
+                    ? 'bg-brand'
+                    : 'bg-slate-300'
               }`}>
-              <Text className="text-sm font-bold text-white">Concluir</Text>
+              <Text className="text-sm font-bold text-white">
+                {lastPoint ? 'Encerrar rota' : 'Concluir'}
+              </Text>
             </Pressable>
             <Pressable
               disabled={!canSkip}
@@ -379,29 +398,6 @@ export default function ExecuteRouteScreen() {
                 </View>
               );
             })}
-            {lastPoint ? (
-              <Pressable
-                onPress={() => {
-                  if (!canFinish) {
-                    setAlert({
-                      kind: 'error',
-                      title: 'Não é possível encerrar',
-                      message:
-                        'Ainda há aluno na van. Faça o desembarque de todos os presentes antes de encerrar a rota.',
-                    });
-                    return;
-                  }
-                  dispatch(finishRouteExecution());
-                  router.replace('/' as Href);
-                }}
-                className={`mt-2 items-center rounded-2xl py-4 ${
-                  canFinish ? 'bg-brand' : 'bg-slate-300'
-                }`}>
-                <Text className="text-base font-bold text-white">
-                  Encerrar rota
-                </Text>
-              </Pressable>
-            ) : null}
           </ScrollView>
         </View>
       ) : (
