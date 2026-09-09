@@ -96,6 +96,20 @@ export default function HistoryDetailScreen() {
   return (
     <View className="flex-1 bg-slate-50">
       <Stack.Screen options={{ title }} />
+      {trip.cycleJustification ? (
+        <View className="border-b border-amber-200 bg-amber-50 px-4 py-3">
+          <Text className="text-xs font-bold uppercase text-amber-800">
+            Justificativa de ciclo
+          </Text>
+          <Text className="mt-1 text-sm text-amber-950">
+            {trip.cycleJustification.kind === 'forgot_morning'
+              ? 'Esqueci de iniciar de manhã'
+              : trip.cycleJustification.kind === 'afternoon_only'
+                ? 'Período exclusivo à tarde'
+                : trip.cycleJustification.note ?? 'Texto livre'}
+          </Text>
+        </View>
+      ) : null}
       <View className="flex-row border-b border-slate-200 bg-white">
         <Pressable
           onPress={() => setTab('timeline')}

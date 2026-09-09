@@ -1,5 +1,6 @@
 import { createSelector, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
+import { localDateKey } from '@/lib/localDate';
 import type { RouteDirection } from '@/types';
 import type {
   AfternoonStatus,
@@ -10,6 +11,7 @@ import type {
 } from '@/types/attendance';
 import type {
   ActiveExecution,
+  CycleJustification,
   ExecutionStatus,
   RouteHistory,
 } from '@/types/execution';
@@ -25,6 +27,8 @@ import {
   nowIso,
   studentsForCurrentPoint,
   toRouteHistory,
+  latestCompletedIda,
+  absentStudentIdsFromTrip,
 } from './executionSession';
 
 const MOCK_STUDENTS: Student[] = [
@@ -54,6 +58,7 @@ export type StartRouteExecutionPayload = {
   direction: RouteDirection;
   boardingPoints: string[];
   students: { studentId: string; boardingPoint: string }[];
+  cycleJustification?: CycleJustification;
 };
 
 export type AttendanceState = {
@@ -101,7 +106,7 @@ const attendanceSlice = createSlice({
       state.attendance[studentId] = { ...current, studentId, afternoon: status };
     },
     startRouteExecution(state, action: PayloadAction<StartRouteExecutionPayload>) {
-      const { routeId, schoolId, direction, boardingPoints, students } =
+      const { routeId, schoolId, direction, boardingPoints, students, cycleJustification } =
         action.payload;
       const attendances: ActiveExecution['attendances'] = {};
       for (const student of students) {
@@ -131,6 +136,7 @@ const attendanceSlice = createSlice({
         status: 'IN_PROGRESS',
         startedAt: nowIso(),
         pointLogs: [],
+        ...(cycleJustification ? { cycleJustification } : {}),
       };
     },
     markStudentStatus(
@@ -305,6 +311,34 @@ export const selectIsPointComplete = createSelector(
 export const selectCanFinishRoute = createSelector(
   [selectActiveExecution],
   (execution) => (execution ? computeCanFinishRoute(execution) : false),
+);
+
+export const selectHasCompletedIdaToday = createSelector(
+  [
+    selectExecutionHistory,
+    (_state: AttendanceRoot, routeId: string) => routeId,
+  ],
+  (history, routeId) => {
+    if (!routeId) {
+      return false;
+    }
+    return Boolean(latestCompletedIda(history, routeId, localDateKey()));
+  },
+);
+
+export const selectIdaAbsentStudentIds = createSelector(
+  [selectExecutionHistory, selectActiveExecution],
+  (history, execution) => {
+    if (!execution || execution.direction !== 'VOLTA') {
+      return {} as Record<string, true>;
+    }
+    const ida = latestCompletedIda(
+      history,
+      execution.routeId,
+      localDateKey(execution.startedAt),
+    );
+    return absentStudentIdsFromTrip(ida);
+  },
 );
 
 export default attendanceSlice.reducer;
