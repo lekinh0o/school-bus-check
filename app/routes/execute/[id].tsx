@@ -151,11 +151,13 @@ export default function ExecuteRouteScreen() {
       const isStart = token === route.startPoint;
       const done = index < session.currentPointIndex;
       const current = index === session.currentPointIndex;
+      const kind = isSchool ? 'school' : isStart ? 'start' : 'boarding';
       return {
         key: `${token}-${index}`,
         label: isSchool ? schoolName : token,
         status: done ? 'done' : current ? 'current' : 'pending',
-        icon: isSchool || isStart ? 'flag' : done ? 'check' : 'clock',
+        kind,
+        icon: kind === 'school' ? 'home' : kind === 'start' ? 'flag' : 'map-pin',
       };
     });
   }, [route, schoolName, session]);

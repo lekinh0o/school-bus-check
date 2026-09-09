@@ -107,7 +107,13 @@ export default function HistoryDetailScreen() {
       key: `${stop.label}-${index}`,
       label: stop.label,
       status: 'done' as const,
-      icon: stop.icon,
+      kind: stop.kind,
+      icon:
+        stop.kind === 'school'
+          ? 'home'
+          : stop.kind === 'start'
+            ? 'flag'
+            : 'map-pin',
     }));
   }, [route, schoolName, trip]);
 
