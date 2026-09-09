@@ -87,19 +87,40 @@ export function absentStudentIdsFromTrip(
   return ids;
 }
 
+function asStopLabel(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+export function uniqueRouteStops(
+  startPoint: string,
+  boardingPoints: string[],
+): string[] {
+  const start = asStopLabel(startPoint);
+  const rest = (Array.isArray(boardingPoints) ? boardingPoints : [])
+    .map((point) => asStopLabel(point))
+    .filter((point) => point.length > 0 && point !== start);
+  return start.length > 0 ? [start, ...rest] : rest;
+}
+
 export function buildOperationalPointsList(
   direction: RouteDirection,
+  startPoint: string,
   boardingPoints: string[],
   schoolId: string,
 ): string[] {
+  const stops = uniqueRouteStops(startPoint, boardingPoints);
   if (direction === 'IDA') {
-    return [...boardingPoints, schoolId];
+    return [...stops, schoolId];
   }
-  return [schoolId, ...[...boardingPoints].reverse()];
+  return [schoolId, ...[...stops].reverse()];
 }
 
 export function isLastExecutionPoint(execution: ActiveExecution): boolean {
-  return execution.currentPointIndex >= execution.pointsList.length - 1;
+  const points = execution.pointsList ?? [];
+  if (points.length === 0) {
+    return false;
+  }
+  return execution.currentPointIndex >= points.length - 1;
 }
 
 export function isDropoffStop(execution: ActiveExecution): boolean {
@@ -118,7 +139,7 @@ export function hasPresentStudents(execution: ActiveExecution): boolean {
 export function studentsForCurrentPoint(
   execution: ActiveExecution,
 ): ExecutionStudentAttendance[] {
-  const token = execution.pointsList[execution.currentPointIndex];
+  const token = (execution.pointsList ?? [])[execution.currentPointIndex];
   const all = Object.values(execution.attendances);
   if (!token) {
     return [];

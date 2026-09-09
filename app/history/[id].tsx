@@ -1,11 +1,19 @@
 import { Feather } from '@expo/vector-icons';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { BusSeatMap } from '@/components/BusSeatMap';
-import { openGuardianContact } from '@/lib/contactGuardian';
+import {
+  GuardianContactSheet,
+  startGuardianContact,
+} from '@/components/GuardianContactSheet';
+import { SnakePathTimeline, type SnakeStop } from '@/components/SnakePathTimeline';
+import { ExecutionStatusBadge } from '@/components/StatusTag';
+import { StudentAvatar } from '@/components/StudentAvatar';
+import { StudentPhotoPreview } from '@/components/StudentPhotoPreview';
 import { formatClock } from '@/lib/formatTrip';
+import { buildRouteTimelineStops } from '@/components/RouteTimeline';
 import { selectExecutionHistory } from '@/store/attendanceSlice';
 import { selectRouteById } from '@/store/routeSlice';
 import { selectAllStudents } from '@/store/studentSlice';
@@ -13,13 +21,6 @@ import { useAppSelector } from '@/store/store';
 import { selectVehicleById } from '@/store/vehicleSlice';
 import type { ExecutionStatus, RouteHistory } from '@/types/execution';
 import type { Student } from '@/types';
-
-const STATUS_LABEL: Record<ExecutionStatus, string> = {
-  PENDING: 'Pendente',
-  PRESENT: 'Presente',
-  ABSENT: 'Ausente',
-  DROPPED_OFF: 'Desembarcou',
-};
 
 function pickVehicleId(students: Student[]): string | undefined {
   const counts: Record<string, number> = {};
@@ -42,6 +43,11 @@ function pointLabel(trip: RouteHistory, pointId: string, schoolName: string) {
 export default function HistoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [tab, setTab] = useState<'timeline' | 'resumo'>('timeline');
+  const [photoPreview, setPhotoPreview] = useState<{
+    name: string;
+    uri: string;
+  } | null>(null);
+  const [contactPhones, setContactPhones] = useState<string[] | null>(null);
   const trip = useAppSelector(selectExecutionHistory).find((item) => item.id === id);
   const route = useAppSelector((state) =>
     trip ? selectRouteById(state, trip.routeId) : undefined,
@@ -81,6 +87,29 @@ export default function HistoryDetailScreen() {
     }
     return map;
   }, [trip]);
+
+  const snakeStops: SnakeStop[] = useMemo(() => {
+    if (!trip || !route) {
+      return [];
+    }
+    return buildRouteTimelineStops(
+      route.startPoint,
+      route.boardingPoints,
+      schoolName,
+      trip.direction,
+    ).map((stop, index) => ({
+      key: `${stop.label}-${index}`,
+      label: stop.label,
+      status: 'done' as const,
+      kind: stop.kind,
+      icon:
+        stop.kind === 'school'
+          ? 'home'
+          : stop.kind === 'start'
+            ? 'flag'
+            : 'map-pin',
+    }));
+  }, [route, schoolName, trip]);
 
   if (!trip) {
     return (
@@ -139,6 +168,11 @@ export default function HistoryDetailScreen() {
 
       {tab === 'timeline' ? (
         <ScrollView className="flex-1" contentContainerClassName="p-4 pb-10">
+          <Text className="mb-2 text-sm font-bold text-slate-900">Percurso</Text>
+          <SnakePathTimeline stops={snakeStops} />
+          <Text className="mt-6 mb-2 text-sm font-bold text-slate-900">
+            Auditoria
+          </Text>
           {trip.pointLogs.map((log, index) => {
             const name = pointLabel(trip, log.pointId, schoolName);
             const clock = formatClock(log.timestamp);
@@ -205,23 +239,23 @@ export default function HistoryDetailScreen() {
                 key={item.studentId}
                 className="mb-3 rounded-2xl border border-slate-200 bg-white p-3">
                 <View className="flex-row items-center">
-                  {student?.photoUri ? (
-                    <Image
-                      source={{ uri: student.photoUri }}
-                      className="h-16 w-16 rounded-full bg-slate-200"
-                    />
-                  ) : (
-                    <View className="h-16 w-16 items-center justify-center rounded-full bg-slate-200">
-                      <Feather name="user" size={22} color="#94A3B8" />
-                    </View>
-                  )}
+                  <StudentAvatar
+                    photoUri={student?.photoUri}
+                    onLongPress={
+                      student?.photoUri
+                        ? () =>
+                            setPhotoPreview({
+                              name: student.name,
+                              uri: student.photoUri ?? '',
+                            })
+                        : undefined
+                    }
+                  />
                   <View className="ml-3 flex-1">
                     <Text className="text-base font-semibold text-slate-900">
                       {student?.name ?? 'Aluno'}
                     </Text>
-                    <Text className="text-xs text-slate-500">
-                      {STATUS_LABEL[item.status]}
-                    </Text>
+                    <ExecutionStatusBadge status={item.status} />
                     {clock ? (
                       <Text className="mt-0.5 text-xs text-slate-400">
                         Marcado às {clock}
@@ -230,7 +264,7 @@ export default function HistoryDetailScreen() {
                   </View>
                   <Pressable
                     onPress={() =>
-                      openGuardianContact(student?.contactPhones[0] ?? '')
+                      startGuardianContact(student?.contactPhones, setContactPhones)
                     }
                     className="h-12 w-12 items-center justify-center rounded-xl bg-brand-light">
                     <Feather name="phone" size={18} color="#0F6B4D" />
@@ -241,6 +275,17 @@ export default function HistoryDetailScreen() {
           })}
         </ScrollView>
       )}
+      <StudentPhotoPreview
+        visible={photoPreview !== null}
+        name={photoPreview?.name ?? ''}
+        photoUri={photoPreview?.uri}
+        onClose={() => setPhotoPreview(null)}
+      />
+      <GuardianContactSheet
+        phones={contactPhones ?? []}
+        visible={contactPhones !== null}
+        onClose={() => setContactPhones(null)}
+      />
     </View>
   );
 }

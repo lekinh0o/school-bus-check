@@ -1,10 +1,15 @@
 import { Feather } from '@expo/vector-icons';
 import { type Href, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { BusSeatMap } from '@/components/BusSeatMap';
-import { openGuardianContact } from '@/lib/contactGuardian';
+import { AppAlert, type AppAlertState } from '@/components/AppAlert';
+import { GuardianContactSheet, startGuardianContact } from '@/components/GuardianContactSheet';
+import { SnakePathTimeline, type SnakeStop } from '@/components/SnakePathTimeline';
+import { StudentAvatar } from '@/components/StudentAvatar';
+import { StudentPhotoPreview } from '@/components/StudentPhotoPreview';
+import { ExecutionStatusBadge, MissedIdaBadge } from '@/components/StatusTag';
 import {
   advanceToNextPoint,
   finishRouteExecution,
@@ -30,17 +35,6 @@ import { selectVehicleById } from '@/store/vehicleSlice';
 import type { ExecutionStatus } from '@/types/execution';
 import type { Student } from '@/types';
 import { formatRouteTimeWindow } from '@/lib/routeSchedule';
-
-function MissedIdaBadge({ show }: { show: boolean }) {
-  if (!show) {
-    return null;
-  }
-  return (
-    <View className="mt-1 self-start rounded-md bg-amber-400 px-2 py-0.5">
-      <Text className="text-xs font-bold text-amber-950">⚠️ Faltou na Ida</Text>
-    </View>
-  );
-}
 
 function pickVehicleId(students: Student[]): string | undefined {
   const counts: Record<string, number> = {};
@@ -73,6 +67,12 @@ export default function ExecuteRouteScreen() {
   const dispatch = useAppDispatch();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [tab, setTab] = useState<'execucao' | 'resumo'>('execucao');
+  const [alert, setAlert] = useState<AppAlertState>(null);
+  const [photoPreview, setPhotoPreview] = useState<{
+    name: string;
+    uri: string;
+  } | null>(null);
+  const [contactPhones, setContactPhones] = useState<string[] | null>(null);
   const route = useAppSelector((state) =>
     id ? selectRouteById(state, id) : undefined,
   );
@@ -101,7 +101,7 @@ export default function ExecuteRouteScreen() {
     !lastPoint &&
     !hasBoardingMarks(
       session.attendances,
-      session.pointsList[session.currentPointIndex] ?? '',
+      session.pointsList?.[session.currentPointIndex] ?? '',
       session.schoolId,
       session.direction,
     );
@@ -132,52 +132,25 @@ export default function ExecuteRouteScreen() {
     return map;
   }, [session]);
 
-  const visualStops = useMemo(() => {
+  const snakeStops: SnakeStop[] = useMemo(() => {
     if (!route || !session) {
       return [];
     }
-    const boarding =
-      session.direction === 'IDA'
-        ? route.boardingPoints
-        : [...route.boardingPoints].reverse();
-    const startDone = true;
-    const nodes: { key: string; kind: 'start' | 'point' | 'end'; done: boolean }[] =
-      [];
-    if (session.direction === 'IDA') {
-      nodes.push({ key: 'start', kind: 'start', done: startDone });
-      boarding.forEach((point, index) => {
-        nodes.push({
-          key: point,
-          kind: 'point',
-          done: session.currentPointIndex > index,
-        });
-      });
-      nodes.push({
-        key: 'school',
-        kind: 'end',
-        done: session.currentPointIndex > route.boardingPoints.length,
-      });
-    } else {
-      nodes.push({
-        key: 'school',
-        kind: 'end',
-        done: session.currentPointIndex > 0,
-      });
-      boarding.forEach((point, index) => {
-        nodes.push({
-          key: point,
-          kind: 'point',
-          done: session.currentPointIndex > index + 1,
-        });
-      });
-      nodes.push({
-        key: 'start',
-        kind: 'start',
-        done: session.currentPointIndex >= session.pointsList.length,
-      });
-    }
-    return nodes;
-  }, [route, session]);
+    return (session.pointsList ?? []).map((token, index) => {
+      const isSchool = token === session.schoolId;
+      const isStart = token === route.startPoint;
+      const done = index < session.currentPointIndex;
+      const current = index === session.currentPointIndex;
+      const kind = isSchool ? 'school' : isStart ? 'start' : 'boarding';
+      return {
+        key: `${token}-${index}`,
+        label: isSchool ? schoolName : token,
+        status: done ? 'done' : current ? 'current' : 'pending',
+        kind,
+        icon: kind === 'school' ? 'home' : kind === 'start' ? 'flag' : 'map-pin',
+      };
+    });
+  }, [route, schoolName, session]);
 
   if (!route) {
     return (
@@ -251,40 +224,18 @@ export default function ExecuteRouteScreen() {
               {stats.present} Presentes | {stats.absent} Ausentes |{' '}
               {session.skippedPoints.length} Pulados
             </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="mt-2">
-              <View className="flex-row items-center">
-                {visualStops.map((node, index) => (
-                  <View key={`${node.key}-${index}`} className="mr-2 items-center">
-                    <View
-                      className={`h-10 w-10 items-center justify-center rounded-full ${
-                        node.kind === 'start'
-                          ? 'bg-blue-100'
-                          : node.kind === 'end'
-                            ? 'bg-slate-800'
-                            : 'bg-brand-light'
-                      }`}>
-                      <Feather
-                        name={
-                          node.kind === 'point'
-                            ? node.done
-                              ? 'check'
-                              : 'clock'
-                            : 'flag'
-                        }
-                        size={16}
-                        color={node.kind === 'end' ? '#F8FAFC' : '#1D4ED8'}
-                      />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-            <Text className="mt-2 text-lg font-bold text-slate-900">
-              {dropoff ? 'Desembarque' : 'Embarque'} · {pointName}
-            </Text>
+            <View className="mt-3 rounded-2xl border border-brand bg-brand-light px-4 py-4">
+              <Text className="text-xs font-bold uppercase text-brand-dark">
+                Parada atual
+              </Text>
+              <Text className="mt-1 text-xl font-bold text-slate-900">
+                {dropoff ? 'Desembarque' : 'Embarque'}
+              </Text>
+              <Text className="mt-1 text-lg font-semibold text-brand-dark">
+                {pointName}
+              </Text>
+            </View>
+            <SnakePathTimeline stops={snakeStops} />
           </View>
 
           <View className="flex-row gap-2 px-4 py-3">
@@ -299,12 +250,44 @@ export default function ExecuteRouteScreen() {
               <Text className="text-sm font-bold text-slate-700">Anterior</Text>
             </Pressable>
             <Pressable
-              disabled={!pointComplete || lastPoint}
-              onPress={() => dispatch(advanceToNextPoint())}
+              onPress={() => {
+                if (lastPoint) {
+                  if (!canFinish) {
+                    setAlert({
+                      kind: 'error',
+                      title: 'Não é possível encerrar',
+                      message:
+                        'Ainda há aluno na van. Faça o desembarque de todos os presentes antes de encerrar a rota.',
+                    });
+                    return;
+                  }
+                  dispatch(finishRouteExecution());
+                  router.replace('/' as Href);
+                  return;
+                }
+                if (!pointComplete) {
+                  setAlert({
+                    kind: 'error',
+                    title: 'Não é possível concluir',
+                    message:
+                      'Ainda há aluno neste ponto sem marcação. Marque todos antes de avançar.',
+                  });
+                  return;
+                }
+                dispatch(advanceToNextPoint());
+              }}
               className={`flex-1 items-center rounded-2xl py-4 ${
-                pointComplete && !lastPoint ? 'bg-brand' : 'bg-slate-300'
+                lastPoint
+                  ? canFinish
+                    ? 'bg-brand'
+                    : 'bg-slate-300'
+                  : pointComplete
+                    ? 'bg-brand'
+                    : 'bg-slate-300'
               }`}>
-              <Text className="text-sm font-bold text-white">Concluir</Text>
+              <Text className="text-sm font-bold text-white">
+                {lastPoint ? 'Encerrar rota' : 'Concluir'}
+              </Text>
             </Pressable>
             <Pressable
               disabled={!canSkip}
@@ -322,105 +305,89 @@ export default function ExecuteRouteScreen() {
               return (
                 <View
                   key={item.studentId}
-                  className="mb-3 flex-row rounded-2xl border border-slate-200 bg-white p-3">
-                  {student?.photoUri ? (
-                    <Image
-                      source={{ uri: student.photoUri }}
-                      className="h-16 w-16 rounded-full bg-slate-200"
+                  className="mb-3 rounded-2xl border border-slate-200 bg-white p-3">
+                  <View className="flex-row">
+                    <StudentAvatar
+                      photoUri={student?.photoUri}
+                      onLongPress={
+                        student?.photoUri
+                          ? () =>
+                              setPhotoPreview({
+                                name: student.name,
+                                uri: student.photoUri ?? '',
+                              })
+                          : undefined
+                      }
                     />
-                  ) : (
-                    <View className="h-16 w-16 items-center justify-center rounded-full bg-slate-200">
-                      <Feather name="user" size={22} color="#94A3B8" />
+                    <View className="ml-3 flex-1">
+                      <Text className="text-base font-semibold text-slate-900">
+                        {student?.name ?? 'Aluno'}
+                      </Text>
+                      <MissedIdaBadge show={Boolean(missedIda[item.studentId])} />
+                      <Text className="text-sm text-slate-500">
+                        {item.boardingPoint}
+                      </Text>
                     </View>
-                  )}
-                  <View className="ml-3 flex-1">
-                    <Text className="text-base font-semibold text-slate-900">
-                      {student?.name ?? 'Aluno'}
-                    </Text>
-                    <MissedIdaBadge show={Boolean(missedIda[item.studentId])} />
-                    <Text className="text-sm text-slate-500">{item.boardingPoint}</Text>
-                    <View className="mt-2 flex-row gap-2">
-                      {dropoff ? (
+                  </View>
+                  <View className="mt-3 flex-row gap-2">
+                    {dropoff ? (
+                      <Pressable
+                        onPress={() =>
+                          dispatch(
+                            markStudentStatus({
+                              studentId: item.studentId,
+                              status: 'DROPPED_OFF',
+                            }),
+                          )
+                        }
+                        className="min-h-12 flex-1 items-center justify-center rounded-xl bg-emerald-600 py-3">
+                        <Text className="text-sm font-bold text-white">
+                          Desembarque
+                        </Text>
+                      </Pressable>
+                    ) : (
+                      <>
                         <Pressable
                           onPress={() =>
                             dispatch(
                               markStudentStatus({
                                 studentId: item.studentId,
-                                status: 'DROPPED_OFF',
+                                status: 'PRESENT',
                               }),
                             )
                           }
-                          className="flex-1 items-center rounded-xl bg-emerald-600 py-3">
+                          className="min-h-12 flex-1 items-center justify-center rounded-xl bg-emerald-600 py-3">
                           <Text className="text-sm font-bold text-white">
-                            Desembarque
+                            Presente
                           </Text>
                         </Pressable>
-                      ) : (
-                        <>
-                          <Pressable
-                            onPress={() =>
-                              dispatch(
-                                markStudentStatus({
-                                  studentId: item.studentId,
-                                  status: 'PRESENT',
-                                }),
-                              )
-                            }
-                            className="flex-1 items-center rounded-xl bg-emerald-600 py-3">
-                            <Text className="text-sm font-bold text-white">
-                              Presente
-                            </Text>
-                          </Pressable>
-                          <Pressable
-                            onPress={() =>
-                              dispatch(
-                                markStudentStatus({
-                                  studentId: item.studentId,
-                                  status: 'ABSENT',
-                                }),
-                              )
-                            }
-                            className="flex-1 items-center rounded-xl bg-orange-500 py-3">
-                            <Text className="text-sm font-bold text-white">
-                              Ausente
-                            </Text>
-                          </Pressable>
-                        </>
-                      )}
-                      <Pressable
-                        onPress={() =>
-                          openGuardianContact(student?.contactPhones[0] ?? '')
-                        }
-                        className="h-12 w-12 items-center justify-center rounded-xl bg-brand-light">
-                        <Feather name="phone" size={18} color="#0F6B4D" />
-                      </Pressable>
-                    </View>
+                        <Pressable
+                          onPress={() =>
+                            dispatch(
+                              markStudentStatus({
+                                studentId: item.studentId,
+                                status: 'ABSENT',
+                              }),
+                            )
+                          }
+                          className="min-h-12 flex-1 items-center justify-center rounded-xl bg-orange-500 py-3">
+                          <Text className="text-sm font-bold text-white">
+                            Ausente
+                          </Text>
+                        </Pressable>
+                      </>
+                    )}
+                    <Pressable
+                      onPress={() =>
+                        startGuardianContact(student?.contactPhones, setContactPhones)
+                      }
+                      className="h-12 w-12 items-center justify-center rounded-xl bg-brand-light">
+                      <Feather name="phone" size={18} color="#0F6B4D" />
+                    </Pressable>
                   </View>
                 </View>
               );
             })}
-            {lastPoint ? (
-              <>
-                <Pressable
-                  disabled={!canFinish}
-                  onPress={() => {
-                    dispatch(finishRouteExecution());
-                    router.replace('/' as Href);
-                  }}
-                  className={`mt-2 items-center rounded-2xl py-4 ${
-                    canFinish ? 'bg-brand' : 'bg-slate-300'
-                  }`}>
-                  <Text className="text-base font-bold text-white">
-                    Encerrar rota
-                  </Text>
-                </Pressable>
-                {!canFinish ? (
-                  <Text className="mt-2 text-center text-sm font-semibold text-red-600">
-                    Ainda há aluno na van.
-                  </Text>
-                ) : null}
-              </>
-            ) : null}
           </ScrollView>
         </View>
       ) : (
@@ -446,26 +413,28 @@ export default function ExecuteRouteScreen() {
                 key={item.studentId}
                 className="mb-3 rounded-2xl border border-slate-200 bg-white p-3">
                 <View className="flex-row items-center">
-                  {student?.photoUri ? (
-                    <Image
-                      source={{ uri: student.photoUri }}
-                      className="h-16 w-16 rounded-full bg-slate-200"
-                    />
-                  ) : (
-                    <View className="h-16 w-16 items-center justify-center rounded-full bg-slate-200">
-                      <Feather name="user" size={22} color="#94A3B8" />
-                    </View>
-                  )}
+                  <StudentAvatar
+                    photoUri={student?.photoUri}
+                    onLongPress={
+                      student?.photoUri
+                        ? () =>
+                            setPhotoPreview({
+                              name: student.name,
+                              uri: student.photoUri ?? '',
+                            })
+                        : undefined
+                    }
+                  />
                   <View className="ml-3 flex-1">
                     <Text className="text-base font-semibold text-slate-900">
                       {student?.name ?? 'Aluno'}
                     </Text>
-                    <Text className="text-xs text-slate-500">{item.status}</Text>
+                    <ExecutionStatusBadge status={item.status} />
                     <MissedIdaBadge show={Boolean(missedIda[item.studentId])} />
                   </View>
                   <Pressable
                     onPress={() =>
-                      openGuardianContact(student?.contactPhones[0] ?? '')
+                      startGuardianContact(student?.contactPhones, setContactPhones)
                     }
                     className="h-12 w-12 items-center justify-center rounded-xl bg-brand-light">
                     <Feather name="phone" size={18} color="#0F6B4D" />
@@ -516,6 +485,18 @@ export default function ExecuteRouteScreen() {
           })}
         </ScrollView>
       )}
+      <AppAlert alert={alert} onDismiss={() => setAlert(null)} />
+      <StudentPhotoPreview
+        visible={photoPreview !== null}
+        name={photoPreview?.name ?? ''}
+        photoUri={photoPreview?.uri}
+        onClose={() => setPhotoPreview(null)}
+      />
+      <GuardianContactSheet
+        phones={contactPhones ?? []}
+        visible={contactPhones !== null}
+        onClose={() => setContactPhones(null)}
+      />
     </View>
   );
 }
