@@ -210,6 +210,9 @@ export default function StudentFormScreen() {
       if (!selectedRoute) {
         return;
       }
+      if (pointName === selectedRoute.startPoint.trim()) {
+        return;
+      }
       dispatch(
         addBoardingPointToRoute({
           routeId: selectedRoute.id,
@@ -415,12 +418,21 @@ export default function StudentFormScreen() {
         )}
 
         <FieldLabel>Ponto de embarque</FieldLabel>
-        {selectedRoute && selectedRoute.boardingPoints.length > 0 ? (
+        {selectedRoute ? (
           <View className="mb-2 flex-row flex-wrap gap-2">
-            {selectedRoute.boardingPoints.map((point) => (
+            {[
+              selectedRoute.startPoint,
+              ...selectedRoute.boardingPoints.filter(
+                (point) => point !== selectedRoute.startPoint,
+              ),
+            ].map((point) => (
               <ChoiceChip
                 key={point}
-                label={point}
+                label={
+                  point === selectedRoute.startPoint
+                    ? `Ponto inicial · ${point}`
+                    : point
+                }
                 selected={boardingPoint.trim() === point}
                 onPress={() => setBoardingPoint(point)}
               />

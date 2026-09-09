@@ -87,15 +87,28 @@ export function absentStudentIdsFromTrip(
   return ids;
 }
 
+export function uniqueRouteStops(
+  startPoint: string,
+  boardingPoints: string[],
+): string[] {
+  const start = startPoint.trim();
+  const rest = boardingPoints
+    .map((point) => point.trim())
+    .filter((point) => point.length > 0 && point !== start);
+  return start.length > 0 ? [start, ...rest] : rest;
+}
+
 export function buildOperationalPointsList(
   direction: RouteDirection,
+  startPoint: string,
   boardingPoints: string[],
   schoolId: string,
 ): string[] {
+  const stops = uniqueRouteStops(startPoint, boardingPoints);
   if (direction === 'IDA') {
-    return [...boardingPoints, schoolId];
+    return [...stops, schoolId];
   }
-  return [schoolId, ...[...boardingPoints].reverse()];
+  return [schoolId, ...[...stops].reverse()];
 }
 
 export function isLastExecutionPoint(execution: ActiveExecution): boolean {

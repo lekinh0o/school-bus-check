@@ -45,6 +45,7 @@ export function StartRouteSheet({
         routeId: route.id,
         schoolId: route.schoolId,
         direction,
+        startPoint: route.startPoint,
         boardingPoints: route.boardingPoints,
         students: routeStudents.map((student) => ({
           studentId: student.id,

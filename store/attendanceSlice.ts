@@ -56,6 +56,7 @@ export type StartRouteExecutionPayload = {
   routeId: string;
   schoolId: string;
   direction: RouteDirection;
+  startPoint: string;
   boardingPoints: string[];
   students: { studentId: string; boardingPoint: string }[];
   cycleJustification?: CycleJustification;
@@ -106,8 +107,15 @@ const attendanceSlice = createSlice({
       state.attendance[studentId] = { ...current, studentId, afternoon: status };
     },
     startRouteExecution(state, action: PayloadAction<StartRouteExecutionPayload>) {
-      const { routeId, schoolId, direction, boardingPoints, students, cycleJustification } =
-        action.payload;
+      const {
+        routeId,
+        schoolId,
+        direction,
+        startPoint,
+        boardingPoints,
+        students,
+        cycleJustification,
+      } = action.payload;
       const attendances: ActiveExecution['attendances'] = {};
       for (const student of students) {
         const boardingPoint = student.boardingPoint.trim();
@@ -128,6 +136,7 @@ const attendanceSlice = createSlice({
         currentPointIndex: 0,
         pointsList: buildOperationalPointsList(
           direction,
+          startPoint,
           boardingPoints,
           schoolId,
         ),
