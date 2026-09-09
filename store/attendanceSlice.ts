@@ -8,16 +8,23 @@ import type {
   Student,
   StudentAttendance,
 } from '@/types/attendance';
-import type { ActiveExecution, ExecutionStatus } from '@/types/execution';
+import type {
+  ActiveExecution,
+  ExecutionStatus,
+  RouteHistory,
+} from '@/types/execution';
 
 import {
+  appendPointLog,
   buildOperationalPointsList,
   canFinishRoute as computeCanFinishRoute,
   hasPresentStudents,
   isDropoffStop,
   isLastExecutionPoint,
   isPointComplete as computeIsPointComplete,
+  nowIso,
   studentsForCurrentPoint,
+  toRouteHistory,
 } from './executionSession';
 
 const MOCK_STUDENTS: Student[] = [
@@ -54,6 +61,7 @@ export type AttendanceState = {
   attendance: Record<string, StudentAttendance>;
   shift: Shift;
   activeExecution: ActiveExecution | null;
+  executionHistory: RouteHistory[];
 };
 
 const initialState: AttendanceState = {
@@ -61,6 +69,7 @@ const initialState: AttendanceState = {
   attendance: {},
   shift: 'morning',
   activeExecution: null,
+  executionHistory: [],
 };
 
 type AttendanceRoot = {
@@ -120,6 +129,8 @@ const attendanceSlice = createSlice({
         skippedPoints: [],
         attendances,
         status: 'IN_PROGRESS',
+        startedAt: nowIso(),
+        pointLogs: [],
       };
     },
     markStudentStatus(
@@ -138,6 +149,7 @@ const attendanceSlice = createSlice({
         (item) => item.studentId === action.payload.studentId,
       );
       const next = action.payload.status;
+      const previous = record.status;
       if (next === 'PENDING' && (record.status === 'PRESENT' || record.status === 'ABSENT')) {
         record.status = 'PENDING';
       } else if (next === 'PRESENT' && record.status !== 'DROPPED_OFF') {
@@ -147,12 +159,19 @@ const attendanceSlice = createSlice({
       } else if (record.status === 'PRESENT' && next === 'DROPPED_OFF') {
         record.status = next;
       }
+      if (record.status !== previous) {
+        record.recordedAt = nowIso();
+      }
       if (
         wasOnCurrentPoint &&
         next !== 'PENDING' &&
         computeIsPointComplete(execution) &&
         !isLastExecutionPoint(execution)
       ) {
+        const token = execution.pointsList[execution.currentPointIndex];
+        if (token) {
+          appendPointLog(execution, token, 'COMPLETED');
+        }
         execution.currentPointIndex += 1;
       }
     },
@@ -163,6 +182,10 @@ const attendanceSlice = createSlice({
       }
       if (isLastExecutionPoint(execution) || !computeIsPointComplete(execution)) {
         return;
+      }
+      const token = execution.pointsList[execution.currentPointIndex];
+      if (token) {
+        appendPointLog(execution, token, 'COMPLETED');
       }
       execution.currentPointIndex += 1;
     },
@@ -187,6 +210,7 @@ const attendanceSlice = createSlice({
       const token = execution.pointsList[execution.currentPointIndex];
       if (token) {
         execution.skippedPoints.push(token);
+        appendPointLog(execution, token, 'SKIPPED');
       }
       execution.currentPointIndex += 1;
     },
@@ -198,7 +222,17 @@ const attendanceSlice = createSlice({
       if (hasPresentStudents(execution) || !isLastExecutionPoint(execution)) {
         return;
       }
+      const token = execution.pointsList[execution.currentPointIndex];
+      if (token) {
+        appendPointLog(execution, token, 'COMPLETED');
+      }
+      const finishedAt = nowIso();
       execution.status = 'COMPLETED';
+      if (!state.executionHistory) {
+        state.executionHistory = [];
+      }
+      state.executionHistory.unshift(toRouteHistory(execution, finishedAt));
+      state.activeExecution = null;
     },
   },
 });
@@ -221,6 +255,8 @@ export const selectAttendance = (state: AttendanceRoot) =>
 export const selectShift = (state: AttendanceRoot) => state.attendance.shift;
 export const selectActiveExecution = (state: AttendanceRoot) =>
   state.attendance.activeExecution ?? null;
+export const selectExecutionHistory = (state: AttendanceRoot) =>
+  state.attendance.executionHistory ?? [];
 
 export const selectCurrentPointName = createSelector(
   [selectActiveExecution, (state: AttendanceRoot) => state.schools.entities],

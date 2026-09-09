@@ -74,6 +74,7 @@ export default function RootLayout() {
               <Stack.Screen name="schools" />
               <Stack.Screen name="routes" />
               <Stack.Screen name="students" />
+              <Stack.Screen name="history" />
             </Stack>
             <StatusBar style="auto" />
           </ThemeProvider>
