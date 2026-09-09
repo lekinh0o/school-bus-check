@@ -10,6 +10,7 @@ import { selectAllStudents } from '@/store/studentSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { Route, RouteDirection } from '@/types';
 import type { CycleJustification } from '@/types/execution';
+import { formatRouteTimeWindow } from '@/lib/routeSchedule';
 
 type StartRouteSheetProps = {
   route: Route | null;
@@ -91,6 +92,11 @@ export function StartRouteSheet({
             </Text>
             <Text className="mt-1 text-sm text-slate-500">
               Escolha o sentido e inicie o trajeto.
+            </Text>
+            <Text className="mt-2 text-sm font-semibold text-brand-dark">
+              {route
+                ? `${direction === 'IDA' ? 'Ida' : 'Volta'} · ${formatRouteTimeWindow(route, direction)}`
+                : ''}
             </Text>
             <View className="mt-4 flex-row gap-2">
               <Pressable

@@ -35,8 +35,10 @@ export type Route = {
   startPoint: string;
   boardingPoints: string[];
   schoolId: string;
-  startTime: string;
-  endTime: string;
+  departureTimeIda: string;
+  arrivalTimeIda: string;
+  departureTimeVolta: string;
+  arrivalTimeVolta: string;
   period: RoutePeriod;
   responsiblePhotoUri?: string;
 };

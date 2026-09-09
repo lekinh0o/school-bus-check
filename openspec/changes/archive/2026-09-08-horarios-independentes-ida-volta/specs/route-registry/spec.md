@@ -1,17 +1,4 @@
-# route-registry Specification
-
-## Purpose
-
-Permite cadastrar, listar, editar e excluir rotas de transporte escolar, vinculando cada rota a uma escola já cadastrada e mantendo a lista de pontos de embarque, a partir do dashboard de Cadastros.
-
-## Requirements
-
-### Requirement: Acesso às rotas a partir de Cadastros
-O sistema SHALL permitir que o usuário abra a listagem de rotas a partir do card Rotas no dashboard de Cadastros.
-
-#### Scenario: Card Rotas habilitado
-- **WHEN** o usuário está em Cadastros e toca o card Rotas
-- **THEN** o sistema navega para a tela de listagem de rotas
+## MODIFIED Requirements
 
 ### Requirement: Listagem de rotas cadastradas
 O sistema SHALL exibir todas as rotas persistidas. Cada item MUST mostrar o título, o ponto de início, o período, as duas janelas de horário (ida e volta) e o nome da escola de destino resolvido pelo vínculo da rota, além da timeline do percurso na ordem cadastrada (ponto inicial → pontos de embarque → escola). O cadastro MUST NOT exibir um sentido persistido IDA/VOLTA.
@@ -54,68 +41,7 @@ O sistema SHALL permitir abrir uma rota existente no formulário, com os campos,
 - **WHEN** o usuário altera campos, horários de um sentido, pontos, ordem dos pontos ou escola e salva
 - **THEN** o sistema atualiza a rota, ajusta os vínculos nas escolas quando a escola muda, e retorna à tela anterior
 
-### Requirement: Excluir rota
-O sistema SHALL exigir confirmação explícita antes de excluir uma rota. Após confirmação, a rota MUST ser removida da listagem e o identificador MUST ser retirado da lista de rotas da escola vinculada.
-
-#### Scenario: Cancelar exclusão
-- **WHEN** o usuário inicia exclusão e cancela na confirmação
-- **THEN** a rota permanece cadastrada e o vínculo na escola não muda
-
-#### Scenario: Confirmar exclusão
-- **WHEN** o usuário confirma a exclusão
-- **THEN** a rota deixa de aparecer na listagem e deixa de contar como rota vinculada na escola
-
-### Requirement: Lista dinâmica de ruas no formulário
-O sistema SHALL permitir adicionar pontos de embarque pelo nome, removê-los individualmente e reordenar (subir/descer) antes de salvar. Um ponto em branco MUST NOT ser adicionado. A ordem da lista MUST ser a ordem persistida em `boardingPoints`. Os rótulos da interface MUST usar “Ponto de embarque”, não “rua”.
-
-#### Scenario: Adicionar rua
-- **WHEN** o usuário informa um nome de ponto não vazio e confirma a adição
-- **THEN** o ponto aparece na lista do formulário e o campo de nome é limpo
-
-#### Scenario: Remover rua
-- **WHEN** o usuário remove um ponto da lista do formulário
-- **THEN** aquele ponto deixa de aparecer na lista; os demais permanecem na ordem relativa
-
-#### Scenario: Nome vazio
-- **WHEN** o usuário tenta adicionar um ponto sem nome
-- **THEN** a lista de pontos não muda
-
-#### Scenario: Subir rua
-- **WHEN** o usuário sobe um ponto que não é o primeiro
-- **THEN** ele troca de posição com o anterior na lista
-
-#### Scenario: Descer rua
-- **WHEN** o usuário desce um ponto que não é o último
-- **THEN** ele troca de posição com o seguinte na lista
-
-### Requirement: Título e sentido da rota
-O sistema SHALL exigir um título da rota na criação e na edição. O sistema MUST NOT exigir nem persistir sentido `IDA` ou `VOLTA` no cadastro da rota.
-
-#### Scenario: Salvar com título e sentido
-- **WHEN** o usuário informa título e os demais campos obrigatórios e salva (sem escolher sentido)
-- **THEN** o sistema persiste o título e não grava sentido na rota
-
-#### Scenario: Sem título ou sentido
-- **WHEN** o título está vazio
-- **THEN** o sistema MUST NOT persistir a rota
-
-### Requirement: Foto do responsável da rota
-O sistema SHALL permitir anexar uma foto opcional do responsável pela rota. Se houver foto, o formulário MUST exibi-la.
-
-#### Scenario: Anexar foto
-- **WHEN** o usuário escolhe uma imagem e salva a rota
-- **THEN** a rota persistida guarda a referência da foto do responsável
-
-### Requirement: Timeline horizontal do percurso
-O sistema SHALL exibir, na listagem de rotas, uma timeline horizontal com o ponto inicial, os pontos de embarque na ordem persistida e a escola de destino (ou indicação se a escola não existir), em scroll horizontal.
-
-#### Scenario: Percurso com ruas
-- **WHEN** a rota tem ponto inicial, um ou mais pontos de embarque e escola válida
-- **THEN** a timeline mostra início, depois cada ponto na ordem, depois o nome da escola
-
-#### Scenario: Sem ruas
-- **WHEN** a rota não tem pontos de embarque cadastrados
-- **THEN** a timeline ainda mostra ponto inicial e escola de destino
+## ADDED Requirements
 
 ### Requirement: Formulário com horários de ida e volta
 O formulário de rota SHALL apresentar duas seções distintas: Turno da Ida (horário de início e horário de término na escola) e Turno da Volta (horário de início na escola e horário de término). Os dois pares MUST ser persistidos de forma independente. Uma janela MUST NOT sobrescrever a outra.

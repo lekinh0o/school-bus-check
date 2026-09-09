@@ -29,6 +29,7 @@ import { useAppDispatch, useAppSelector } from '@/store/store';
 import { selectVehicleById } from '@/store/vehicleSlice';
 import type { ExecutionStatus } from '@/types/execution';
 import type { Student } from '@/types';
+import { formatRouteTimeWindow } from '@/lib/routeSchedule';
 
 function MissedIdaBadge({ show }: { show: boolean }) {
   if (!show) {
@@ -210,6 +211,12 @@ export default function ExecuteRouteScreen() {
   return (
     <View className="flex-1 bg-slate-50">
       <Stack.Screen options={{ title: route.title }} />
+      <View className="border-b border-slate-200 bg-white px-4 py-2">
+        <Text className="text-sm font-semibold text-brand-dark">
+          {session.direction === 'IDA' ? 'Ida' : 'Volta'} ·{' '}
+          {formatRouteTimeWindow(route, session.direction)}
+        </Text>
+      </View>
       <View className="flex-row border-b border-slate-200 bg-white">
         <Pressable
           onPress={() => setTab('execucao')}
