@@ -9,6 +9,7 @@ import {
   startGuardianContact,
 } from '@/components/GuardianContactSheet';
 import { SnakePathTimeline, type SnakeStop } from '@/components/SnakePathTimeline';
+import { ExecutionStatusBadge } from '@/components/StatusTag';
 import { StudentAvatar } from '@/components/StudentAvatar';
 import { StudentPhotoPreview } from '@/components/StudentPhotoPreview';
 import { formatClock } from '@/lib/formatTrip';
@@ -20,13 +21,6 @@ import { useAppSelector } from '@/store/store';
 import { selectVehicleById } from '@/store/vehicleSlice';
 import type { ExecutionStatus, RouteHistory } from '@/types/execution';
 import type { Student } from '@/types';
-
-const STATUS_LABEL: Record<ExecutionStatus, string> = {
-  PENDING: 'Pendente',
-  PRESENT: 'Presente',
-  ABSENT: 'Ausente',
-  DROPPED_OFF: 'Desembarcou',
-};
 
 function pickVehicleId(students: Student[]): string | undefined {
   const counts: Record<string, number> = {};
@@ -261,9 +255,7 @@ export default function HistoryDetailScreen() {
                     <Text className="text-base font-semibold text-slate-900">
                       {student?.name ?? 'Aluno'}
                     </Text>
-                    <Text className="text-xs text-slate-500">
-                      {STATUS_LABEL[item.status]}
-                    </Text>
+                    <ExecutionStatusBadge status={item.status} />
                     {clock ? (
                       <Text className="mt-0.5 text-xs text-slate-400">
                         Marcado às {clock}

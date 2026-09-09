@@ -9,6 +9,7 @@ import { GuardianContactSheet, startGuardianContact } from '@/components/Guardia
 import { SnakePathTimeline, type SnakeStop } from '@/components/SnakePathTimeline';
 import { StudentAvatar } from '@/components/StudentAvatar';
 import { StudentPhotoPreview } from '@/components/StudentPhotoPreview';
+import { ExecutionStatusBadge, MissedIdaBadge } from '@/components/StatusTag';
 import {
   advanceToNextPoint,
   finishRouteExecution,
@@ -34,17 +35,6 @@ import { selectVehicleById } from '@/store/vehicleSlice';
 import type { ExecutionStatus } from '@/types/execution';
 import type { Student } from '@/types';
 import { formatRouteTimeWindow } from '@/lib/routeSchedule';
-
-function MissedIdaBadge({ show }: { show: boolean }) {
-  if (!show) {
-    return null;
-  }
-  return (
-    <View className="mt-1 self-start rounded-md bg-amber-100 px-2 py-1">
-      <Text className="text-xs font-bold text-amber-950">⚠️ Faltou na Ida</Text>
-    </View>
-  );
-}
 
 function pickVehicleId(students: Student[]): string | undefined {
   const counts: Record<string, number> = {};
@@ -439,7 +429,7 @@ export default function ExecuteRouteScreen() {
                     <Text className="text-base font-semibold text-slate-900">
                       {student?.name ?? 'Aluno'}
                     </Text>
-                    <Text className="text-xs text-slate-500">{item.status}</Text>
+                    <ExecutionStatusBadge status={item.status} />
                     <MissedIdaBadge show={Boolean(missedIda[item.studentId])} />
                   </View>
                   <Pressable
