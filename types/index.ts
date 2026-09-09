@@ -30,11 +30,10 @@ export type RouteDirection = 'IDA' | 'VOLTA';
 export type Route = {
   id: string;
   title: string;
-  direction: RouteDirection;
   responsible: string;
   monitor: string;
   startPoint: string;
-  streetsCovered: string[];
+  boardingPoints: string[];
   schoolId: string;
   startTime: string;
   endTime: string;
@@ -51,7 +50,7 @@ export type Student = {
   schoolId: string;
   grade: string;
   routeId: string;
-  boardingStreet: string;
+  boardingPoint: string;
   vehicleId: string;
   seatNumber: number;
   photoUri?: string;

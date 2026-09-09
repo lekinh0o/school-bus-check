@@ -2,7 +2,10 @@ import { Feather } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
-import { RouteTimeline } from '@/components/RouteTimeline';
+import {
+  buildRouteTimelineStops,
+  RouteTimeline,
+} from '@/components/RouteTimeline';
 import { removeRoute, selectAllRoutes } from '@/store/routeSlice';
 import { updateSchool } from '@/store/schoolSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
@@ -22,6 +25,10 @@ export default function RoutesListScreen() {
 
   function handleCreate() {
     router.push('/routes/new' as Href);
+  }
+
+  function handleExecute(routeId: string) {
+    router.push(`/routes/execute/${routeId}` as Href);
   }
 
   function handleEdit(routeId: string) {
@@ -80,7 +87,7 @@ export default function RoutesListScreen() {
                       {route.title}
                     </Text>
                     <Text className="mt-1 text-sm font-semibold text-brand">
-                      {route.direction} · {PERIOD_LABEL[route.period]}
+                      {PERIOD_LABEL[route.period]}
                     </Text>
                     <Text className="mt-1 text-sm text-slate-500">
                       {route.startPoint} · {route.startTime} às {route.endTime}
@@ -101,10 +108,17 @@ export default function RoutesListScreen() {
                   </Pressable>
                 </View>
                 <RouteTimeline
-                  startPoint={route.startPoint}
-                  streets={route.streetsCovered}
-                  schoolName={schoolName}
+                  stops={buildRouteTimelineStops(
+                    route.startPoint,
+                    route.boardingPoints,
+                    schoolName,
+                  )}
                 />
+                <Pressable
+                  onPress={() => handleExecute(route.id)}
+                  className="mt-3 items-center rounded-xl bg-brand py-3">
+                  <Text className="text-base font-bold text-white">Executar</Text>
+                </Pressable>
               </View>
             );
           })

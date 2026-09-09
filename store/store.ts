@@ -29,7 +29,7 @@ const rootReducer = combineReducers({
   students: studentReducer,
 });
 
-type PersistedRoutes = {
+type PersistedEntitySlice = {
   ids?: string[];
   entities?: Record<string, Record<string, unknown>>;
 };
@@ -40,7 +40,7 @@ const migrations: MigrationManifest = {
       return state;
     }
 
-    const root = state as PersistedState & { routes?: PersistedRoutes };
+    const root = state as PersistedState & { routes?: PersistedEntitySlice };
     const routes = root.routes;
     if (!routes?.entities) {
       return state;
@@ -74,12 +74,75 @@ const migrations: MigrationManifest = {
       },
     };
   },
+  3: (state: PersistedState) => {
+    if (!state || typeof state !== 'object') {
+      return state;
+    }
+
+    const root = state as PersistedState & {
+      routes?: PersistedEntitySlice;
+      students?: PersistedEntitySlice;
+    };
+
+    const routes = root.routes;
+    let nextRoutes = routes;
+    if (routes?.entities) {
+      const entities = { ...routes.entities };
+      for (const id of Object.keys(entities)) {
+        const route = entities[id];
+        if (!route) {
+          continue;
+        }
+        const { direction: _direction, streetsCovered, ...rest } = route;
+        const boardingPoints = Array.isArray(rest.boardingPoints)
+          ? rest.boardingPoints.filter((item): item is string => typeof item === 'string')
+          : Array.isArray(streetsCovered)
+            ? streetsCovered.filter((item): item is string => typeof item === 'string')
+            : [];
+        entities[id] = {
+          ...rest,
+          boardingPoints,
+        };
+      }
+      nextRoutes = { ...routes, entities };
+    }
+
+    const students = root.students;
+    let nextStudents = students;
+    if (students?.entities) {
+      const entities = { ...students.entities };
+      for (const id of Object.keys(entities)) {
+        const student = entities[id];
+        if (!student) {
+          continue;
+        }
+        const { boardingStreet, ...rest } = student;
+        const boardingPoint =
+          typeof rest.boardingPoint === 'string' && rest.boardingPoint.length > 0
+            ? rest.boardingPoint
+            : typeof boardingStreet === 'string'
+              ? boardingStreet
+              : '';
+        entities[id] = {
+          ...rest,
+          boardingPoint,
+        };
+      }
+      nextStudents = { ...students, entities };
+    }
+
+    return {
+      ...root,
+      routes: nextRoutes,
+      students: nextStudents,
+    };
+  },
 };
 
 const persistConfig = {
   key: 'root',
   storage,
-  version: 2,
+  version: 3,
   timeout: 0,
   migrate: createMigrate(migrations, { debug: false }),
 };

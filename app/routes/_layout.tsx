@@ -17,6 +17,13 @@ export default function RoutesLayout() {
           headerBackTitle: 'Voltar',
         }}
       />
+      <Stack.Screen
+        name="execute/[id]"
+        options={{
+          title: 'Executar rota',
+          headerBackTitle: 'Voltar',
+        }}
+      />
     </Stack>
   );
 }

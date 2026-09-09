@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 
 import { BusSeatMap } from '@/components/BusSeatMap';
-import { selectAllRoutes, selectRouteById, updateRoute } from '@/store/routeSlice';
+import { selectAllRoutes, selectRouteById, addBoardingPointToRoute } from '@/store/routeSlice';
 import { selectAllSchools, updateSchool } from '@/store/schoolSlice';
 import {
   addStudent,
@@ -95,7 +95,7 @@ export default function StudentFormScreen() {
   const [grade, setGrade] = useState('');
   const [schoolId, setSchoolId] = useState('');
   const [routeId, setRouteId] = useState('');
-  const [boardingStreet, setBoardingStreet] = useState('');
+  const [boardingPoint, setBoardingPoint] = useState('');
   const [vehicleId, setVehicleId] = useState('');
   const [seatNumber, setSeatNumber] = useState<number | null>(null);
   const [photoUri, setPhotoUri] = useState<string | undefined>();
@@ -112,7 +112,7 @@ export default function StudentFormScreen() {
     setGrade(existing.grade);
     setSchoolId(existing.schoolId);
     setRouteId(existing.routeId);
-    setBoardingStreet(existing.boardingStreet);
+    setBoardingPoint(existing.boardingPoint);
     setVehicleId(existing.vehicleId);
     setSeatNumber(existing.seatNumber);
     setPhotoUri(existing.photoUri);
@@ -130,7 +130,7 @@ export default function StudentFormScreen() {
     vehicleId ? selectVehicleById(state, vehicleId) : undefined,
   );
 
-  const streetName = boardingStreet.trim();
+  const pointName = boardingPoint.trim();
   const age = parsePositiveInt(ageInput);
 
   const canSubmit =
@@ -142,7 +142,7 @@ export default function StudentFormScreen() {
     grade.trim().length > 0 &&
     schoolId.length > 0 &&
     routeId.length > 0 &&
-    streetName.length > 0 &&
+    pointName.length > 0 &&
     vehicleId.length > 0 &&
     seatNumber !== null;
 
@@ -155,19 +155,19 @@ export default function StudentFormScreen() {
   if (grade.trim().length === 0) missingFields.push('série');
   if (!schoolId) missingFields.push('escola');
   if (!routeId) missingFields.push('rota');
-  if (!streetName) missingFields.push('rua de embarque');
+  if (!pointName) missingFields.push('ponto de embarque');
   if (!vehicleId) missingFields.push('veículo');
   if (seatNumber === null) missingFields.push('assento');
 
   function handleSelectSchool(nextId: string) {
     setSchoolId(nextId);
     setRouteId('');
-    setBoardingStreet('');
+    setBoardingPoint('');
   }
 
   function handleSelectRoute(nextId: string) {
     setRouteId(nextId);
-    setBoardingStreet('');
+    setBoardingPoint('');
   }
 
   function handleSelectVehicle(nextId: string) {
@@ -200,22 +200,20 @@ export default function StudentFormScreen() {
       schoolId,
       grade: grade.trim(),
       routeId,
-      boardingStreet: streetName,
+      boardingPoint: pointName,
       vehicleId,
       seatNumber,
       photoUri,
     };
 
-    function appendStreetIfNeeded() {
-      if (!selectedRoute || selectedRoute.streetsCovered.includes(streetName)) {
+    function appendPointIfNeeded() {
+      if (!selectedRoute) {
         return;
       }
       dispatch(
-        updateRoute({
-          id: selectedRoute.id,
-          changes: {
-            streetsCovered: [...selectedRoute.streetsCovered, streetName],
-          },
+        addBoardingPointToRoute({
+          routeId: selectedRoute.id,
+          pointName,
         }),
       );
     }
@@ -233,7 +231,7 @@ export default function StudentFormScreen() {
           }),
         );
       }
-      appendStreetIfNeeded();
+      appendPointIfNeeded();
     } else if (id && existing) {
       if (
         existing.vehicleId !== vehicleId ||
@@ -268,7 +266,7 @@ export default function StudentFormScreen() {
           );
         }
       }
-      appendStreetIfNeeded();
+      appendPointIfNeeded();
     }
 
     void persistor.flush();
@@ -416,23 +414,23 @@ export default function StudentFormScreen() {
           </View>
         )}
 
-        <FieldLabel>Rua de embarque</FieldLabel>
-        {selectedRoute && selectedRoute.streetsCovered.length > 0 ? (
+        <FieldLabel>Ponto de embarque</FieldLabel>
+        {selectedRoute && selectedRoute.boardingPoints.length > 0 ? (
           <View className="mb-2 flex-row flex-wrap gap-2">
-            {selectedRoute.streetsCovered.map((street) => (
+            {selectedRoute.boardingPoints.map((point) => (
               <ChoiceChip
-                key={street}
-                label={street}
-                selected={boardingStreet.trim() === street}
-                onPress={() => setBoardingStreet(street)}
+                key={point}
+                label={point}
+                selected={boardingPoint.trim() === point}
+                onPress={() => setBoardingPoint(point)}
               />
             ))}
           </View>
         ) : null}
         <TextInput
-          value={boardingStreet}
-          onChangeText={setBoardingStreet}
-          placeholder="Digite a rua ou toque numa sugestão"
+          value={boardingPoint}
+          onChangeText={setBoardingPoint}
+          placeholder="Digite o ponto ou toque numa sugestão"
           placeholderTextColor="#94A3B8"
           className="mb-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-base text-slate-900"
         />

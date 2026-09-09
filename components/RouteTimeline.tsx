@@ -1,10 +1,15 @@
 import { Feather } from '@expo/vector-icons';
 import { ScrollView, Text, View } from 'react-native';
 
+import type { RouteDirection } from '@/types';
+
+export type RouteTimelineStop = {
+  icon: keyof typeof Feather.glyphMap;
+  label: string;
+};
+
 type RouteTimelineProps = {
-  startPoint: string;
-  streets: string[];
-  schoolName: string;
+  stops: RouteTimelineStop[];
 };
 
 function Node({
@@ -35,11 +40,34 @@ function Node({
   );
 }
 
-export function RouteTimeline({
-  startPoint,
-  streets,
-  schoolName,
-}: RouteTimelineProps) {
+export function buildRouteTimelineStops(
+  startPoint: string,
+  boardingPoints: string[],
+  schoolName: string,
+  direction: RouteDirection = 'IDA',
+): RouteTimelineStop[] {
+  if (direction === 'VOLTA') {
+    return [
+      { icon: 'home', label: schoolName },
+      ...[...boardingPoints].reverse().map((point) => ({
+        icon: 'map-pin' as const,
+        label: point,
+      })),
+      { icon: 'flag', label: startPoint },
+    ];
+  }
+
+  return [
+    { icon: 'flag', label: startPoint },
+    ...boardingPoints.map((point) => ({
+      icon: 'map-pin' as const,
+      label: point,
+    })),
+    { icon: 'home', label: schoolName },
+  ];
+}
+
+export function RouteTimeline({ stops }: RouteTimelineProps) {
   return (
     <ScrollView
       horizontal
@@ -47,11 +75,14 @@ export function RouteTimeline({
       className="mt-3"
       contentContainerClassName="items-center py-1 pr-2">
       <View className="flex-row items-center">
-        <Node icon="flag" label={startPoint} />
-        {streets.map((street, index) => (
-          <Node key={`${street}-${index}`} icon="map-pin" label={street} />
+        {stops.map((stop, index) => (
+          <Node
+            key={`${stop.icon}-${stop.label}-${index}`}
+            icon={stop.icon}
+            label={stop.label}
+            isLast={index === stops.length - 1}
+          />
         ))}
-        <Node icon="home" label={schoolName} isLast />
       </View>
     </ScrollView>
   );
