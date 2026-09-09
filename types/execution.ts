@@ -23,6 +23,16 @@ export type ExecutionMetrics = {
   skippedPoints: number;
 };
 
+export type CycleJustificationKind =
+  | 'forgot_morning'
+  | 'afternoon_only'
+  | 'free_text';
+
+export type CycleJustification = {
+  kind: CycleJustificationKind;
+  note?: string;
+};
+
 export type ActiveExecution = {
   id: string;
   routeId: string;
@@ -35,6 +45,7 @@ export type ActiveExecution = {
   status: 'IN_PROGRESS' | 'COMPLETED';
   startedAt: string;
   pointLogs: PointLog[];
+  cycleJustification?: CycleJustification;
 };
 
 export type RouteHistory = {
@@ -47,4 +58,5 @@ export type RouteHistory = {
   pointLogs: PointLog[];
   attendances: Record<string, ExecutionStudentAttendance>;
   metrics: ExecutionMetrics;
+  cycleJustification?: CycleJustification;
 };

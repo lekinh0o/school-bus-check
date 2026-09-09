@@ -1,3 +1,4 @@
+import { localDateKey } from '@/lib/localDate';
 import type { RouteDirection } from '@/types';
 import type {
   ActiveExecution,
@@ -50,7 +51,40 @@ export function toRouteHistory(
       skippedPoints: execution.pointLogs.filter((log) => log.status === 'SKIPPED')
         .length,
     },
+    ...(execution.cycleJustification
+      ? { cycleJustification: { ...execution.cycleJustification } }
+      : {}),
   };
+}
+
+export function latestCompletedIda(
+  history: RouteHistory[],
+  routeId: string,
+  dayKey: string,
+): RouteHistory | undefined {
+  return history
+    .filter(
+      (trip) =>
+        trip.direction === 'IDA' &&
+        trip.routeId === routeId &&
+        localDateKey(trip.startedAt) === dayKey,
+    )
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+}
+
+export function absentStudentIdsFromTrip(
+  trip: RouteHistory | undefined,
+): Record<string, true> {
+  const ids: Record<string, true> = {};
+  if (!trip) {
+    return ids;
+  }
+  for (const record of Object.values(trip.attendances)) {
+    if (record.status === 'ABSENT') {
+      ids[record.studentId] = true;
+    }
+  }
+  return ids;
 }
 
 export function buildOperationalPointsList(
