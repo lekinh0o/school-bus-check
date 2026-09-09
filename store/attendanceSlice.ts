@@ -14,6 +14,7 @@ import {
   buildOperationalPointsList,
   canFinishRoute as computeCanFinishRoute,
   hasPresentStudents,
+  isDropoffStop,
   isLastExecutionPoint,
   isPointComplete as computeIsPointComplete,
   studentsForCurrentPoint,
@@ -133,13 +134,26 @@ const attendanceSlice = createSlice({
       if (!record) {
         return;
       }
+      const wasOnCurrentPoint = studentsForCurrentPoint(execution).some(
+        (item) => item.studentId === action.payload.studentId,
+      );
       const next = action.payload.status;
-      if (record.status === 'PENDING' && (next === 'PRESENT' || next === 'ABSENT')) {
+      if (next === 'PENDING' && (record.status === 'PRESENT' || record.status === 'ABSENT')) {
+        record.status = 'PENDING';
+      } else if (next === 'PRESENT' && record.status !== 'DROPPED_OFF') {
+        record.status = 'PRESENT';
+      } else if (next === 'ABSENT' && record.status !== 'DROPPED_OFF') {
+        record.status = 'ABSENT';
+      } else if (record.status === 'PRESENT' && next === 'DROPPED_OFF') {
         record.status = next;
-        return;
       }
-      if (record.status === 'PRESENT' && next === 'DROPPED_OFF') {
-        record.status = next;
+      if (
+        wasOnCurrentPoint &&
+        next !== 'PENDING' &&
+        computeIsPointComplete(execution) &&
+        !isLastExecutionPoint(execution)
+      ) {
+        execution.currentPointIndex += 1;
       }
     },
     advanceToNextPoint(state) {
@@ -152,12 +166,22 @@ const attendanceSlice = createSlice({
       }
       execution.currentPointIndex += 1;
     },
+    goToPreviousPoint(state) {
+      const execution = state.activeExecution;
+      if (!execution || execution.status !== 'IN_PROGRESS') {
+        return;
+      }
+      if (execution.currentPointIndex <= 0) {
+        return;
+      }
+      execution.currentPointIndex -= 1;
+    },
     skipCurrentPoint(state) {
       const execution = state.activeExecution;
       if (!execution || execution.status !== 'IN_PROGRESS') {
         return;
       }
-      if (isLastExecutionPoint(execution)) {
+      if (isLastExecutionPoint(execution) || isDropoffStop(execution)) {
         return;
       }
       const token = execution.pointsList[execution.currentPointIndex];
@@ -186,6 +210,7 @@ export const {
   startRouteExecution,
   markStudentStatus,
   advanceToNextPoint,
+  goToPreviousPoint,
   skipCurrentPoint,
   finishRouteExecution,
 } = attendanceSlice.actions;

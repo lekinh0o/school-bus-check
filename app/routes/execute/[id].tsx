@@ -1,14 +1,14 @@
+import { Feather } from '@expo/vector-icons';
 import { type Href, Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useMemo } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Image, Pressable, ScrollView, Text, View } from 'react-native';
 
-import {
-  buildRouteTimelineStops,
-  RouteTimeline,
-} from '@/components/RouteTimeline';
+import { BusSeatMap } from '@/components/BusSeatMap';
+import { openGuardianContact } from '@/lib/contactGuardian';
 import {
   advanceToNextPoint,
   finishRouteExecution,
+  goToPreviousPoint,
   markStudentStatus,
   selectActiveExecution,
   selectCanFinishRoute,
@@ -17,18 +17,49 @@ import {
   selectIsPointComplete,
   selectStudentsForCurrentPoint,
   skipCurrentPoint,
-  startRouteExecution,
 } from '@/store/attendanceSlice';
-import { isDropoffStop, isLastExecutionPoint } from '@/store/executionSession';
+import {
+  isDropoffStop,
+  isLastExecutionPoint,
+} from '@/store/executionSession';
 import { selectRouteById } from '@/store/routeSlice';
 import { selectAllStudents } from '@/store/studentSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
-import type { RouteDirection } from '@/types';
+import { selectVehicleById } from '@/store/vehicleSlice';
+import type { ExecutionStatus } from '@/types/execution';
+import type { Student } from '@/types';
+
+function pickVehicleId(students: Student[]): string | undefined {
+  const counts: Record<string, number> = {};
+  for (const student of students) {
+    if (!student.vehicleId) {
+      continue;
+    }
+    counts[student.vehicleId] = (counts[student.vehicleId] ?? 0) + 1;
+  }
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0];
+}
+
+function hasBoardingMarks(
+  attendances: Record<string, { boardingPoint: string; status: ExecutionStatus }>,
+  token: string,
+  schoolId: string,
+  direction: 'IDA' | 'VOLTA',
+): boolean {
+  const all = Object.values(attendances);
+  if (direction === 'VOLTA' && token === schoolId) {
+    return all.some((item) => item.status !== 'PENDING');
+  }
+  return all.some(
+    (item) => item.boardingPoint === token && item.status !== 'PENDING',
+  );
+}
 
 export default function ExecuteRouteScreen() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [tab, setTab] = useState<'execucao' | 'resumo'>('execucao');
   const route = useAppSelector((state) =>
     id ? selectRouteById(state, id) : undefined,
   );
@@ -44,57 +75,95 @@ export default function ExecuteRouteScreen() {
   const stats = useAppSelector(selectExecutionStats);
 
   const schoolName = school?.name ?? 'Escola não encontrada';
-  const sessionForRoute =
+  const session =
     execution && route && execution.routeId === route.id ? execution : null;
-  const inProgress = sessionForRoute?.status === 'IN_PROGRESS';
-  const direction: RouteDirection | null = inProgress
-    ? sessionForRoute.direction
-    : null;
-  const dropoff = inProgress ? isDropoffStop(sessionForRoute) : false;
-  const lastPoint = inProgress ? isLastExecutionPoint(sessionForRoute) : false;
+  const inProgress = session?.status === 'IN_PROGRESS';
+  const dropoff = inProgress && session ? isDropoffStop(session) : false;
+  const lastPoint = inProgress && session ? isLastExecutionPoint(session) : false;
+  const canSkip =
+    inProgress &&
+    session &&
+    !dropoff &&
+    !lastPoint &&
+    !hasBoardingMarks(
+      session.attendances,
+      session.pointsList[session.currentPointIndex] ?? '',
+      session.schoolId,
+      session.direction,
+    );
 
   const routeStudents = useMemo(
     () => (route ? allStudents.filter((student) => student.routeId === route.id) : []),
     [allStudents, route],
   );
-
-  const studentNames = useMemo(() => {
-    const map: Record<string, string> = {};
+  const studentsById = useMemo(() => {
+    const map: Record<string, Student> = {};
     for (const student of routeStudents) {
-      map[student.id] = student.name;
+      map[student.id] = student;
     }
     return map;
   }, [routeStudents]);
+  const vehicleId = useMemo(() => pickVehicleId(routeStudents), [routeStudents]);
+  const vehicle = useAppSelector((state) =>
+    vehicleId ? selectVehicleById(state, vehicleId) : undefined,
+  );
+  const executionStatusByStudentId = useMemo(() => {
+    const map: Record<string, ExecutionStatus> = {};
+    if (!session) {
+      return map;
+    }
+    for (const item of Object.values(session.attendances)) {
+      map[item.studentId] = item.status;
+    }
+    return map;
+  }, [session]);
 
-  const stops = useMemo(() => {
-    if (!route || direction === null) {
+  const visualStops = useMemo(() => {
+    if (!route || !session) {
       return [];
     }
-    return buildRouteTimelineStops(
-      route.startPoint,
-      route.boardingPoints,
-      schoolName,
-      direction,
-    );
-  }, [direction, route, schoolName]);
-
-  function handleStart(nextDirection: RouteDirection) {
-    if (!route || inProgress) {
-      return;
+    const boarding =
+      session.direction === 'IDA'
+        ? route.boardingPoints
+        : [...route.boardingPoints].reverse();
+    const startDone = true;
+    const nodes: { key: string; kind: 'start' | 'point' | 'end'; done: boolean }[] =
+      [];
+    if (session.direction === 'IDA') {
+      nodes.push({ key: 'start', kind: 'start', done: startDone });
+      boarding.forEach((point, index) => {
+        nodes.push({
+          key: point,
+          kind: 'point',
+          done: session.currentPointIndex > index,
+        });
+      });
+      nodes.push({
+        key: 'school',
+        kind: 'end',
+        done: session.currentPointIndex > route.boardingPoints.length,
+      });
+    } else {
+      nodes.push({
+        key: 'school',
+        kind: 'end',
+        done: session.currentPointIndex > 0,
+      });
+      boarding.forEach((point, index) => {
+        nodes.push({
+          key: point,
+          kind: 'point',
+          done: session.currentPointIndex > index + 1,
+        });
+      });
+      nodes.push({
+        key: 'start',
+        kind: 'start',
+        done: session.currentPointIndex >= session.pointsList.length,
+      });
     }
-    dispatch(
-      startRouteExecution({
-        routeId: route.id,
-        schoolId: route.schoolId,
-        direction: nextDirection,
-        boardingPoints: route.boardingPoints,
-        students: routeStudents.map((student) => ({
-          studentId: student.id,
-          boardingPoint: student.boardingPoint,
-        })),
-      }),
-    );
-  }
+    return nodes;
+  }, [route, session]);
 
   if (!route) {
     return (
@@ -103,11 +172,20 @@ export default function ExecuteRouteScreen() {
         <Text className="text-center text-base text-slate-500">
           Rota não encontrada.
         </Text>
+      </View>
+    );
+  }
+
+  if (!inProgress || !session) {
+    return (
+      <View className="flex-1 items-center justify-center bg-slate-50 px-6">
+        <Stack.Screen options={{ title: route.title }} />
+        <Text className="text-center text-base text-slate-500">
+          Inicie o trajeto pela tela Início, escolhendo o sentido.
+        </Text>
         <Pressable
           onPress={() =>
-            router.canGoBack()
-              ? router.back()
-              : router.replace('/routes' as Href)
+            router.canGoBack() ? router.back() : router.replace('/' as Href)
           }
           className="mt-6 items-center rounded-2xl bg-brand px-6 py-4">
           <Text className="text-base font-bold text-white">Voltar</Text>
@@ -117,186 +195,302 @@ export default function ExecuteRouteScreen() {
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-slate-50"
-      contentContainerClassName="p-5 pb-10">
+    <View className="flex-1 bg-slate-50">
       <Stack.Screen options={{ title: route.title }} />
-      <Text className="text-lg font-bold text-slate-900">{route.title}</Text>
-      <Text className="mt-1 text-sm text-slate-500">
-        {inProgress
-          ? 'Sentido travado nesta viagem. Desembarque todos os presentes para encerrar.'
-          : 'Escolha o sentido desta viagem. A linha cadastrada não muda.'}
-      </Text>
-
-      <View className="mt-5 gap-3">
+      <View className="flex-row border-b border-slate-200 bg-white">
         <Pressable
-          disabled={inProgress}
-          onPress={() => handleStart('IDA')}
-          className={`rounded-2xl border px-4 py-5 ${
-            direction === 'IDA'
-              ? 'border-brand bg-brand-light'
-              : 'border-slate-200 bg-white'
-          } ${inProgress && direction !== 'IDA' ? 'opacity-40' : ''}`}>
-          <Text className="text-lg font-bold text-slate-900">
-            ☀️ Sentido: IDA
+          onPress={() => setTab('execucao')}
+          className={`flex-1 items-center py-4 ${
+            tab === 'execucao' ? 'border-b-2 border-brand' : ''
+          }`}>
+          <Text
+            className={`text-base font-bold ${
+              tab === 'execucao' ? 'text-brand-dark' : 'text-slate-500'
+            }`}>
+            Execução
           </Text>
-          <Text className="mt-1 text-sm text-slate-600">Casa → Escola</Text>
         </Pressable>
         <Pressable
-          disabled={inProgress}
-          onPress={() => handleStart('VOLTA')}
-          className={`rounded-2xl border px-4 py-5 ${
-            direction === 'VOLTA'
-              ? 'border-brand bg-brand-light'
-              : 'border-slate-200 bg-white'
-          } ${inProgress && direction !== 'VOLTA' ? 'opacity-40' : ''}`}>
-          <Text className="text-lg font-bold text-slate-900">
-            🌙 Sentido: VOLTA
+          onPress={() => setTab('resumo')}
+          className={`flex-1 items-center py-4 ${
+            tab === 'resumo' ? 'border-b-2 border-brand' : ''
+          }`}>
+          <Text
+            className={`text-base font-bold ${
+              tab === 'resumo' ? 'text-brand-dark' : 'text-slate-500'
+            }`}>
+            Resumo
           </Text>
-          <Text className="mt-1 text-sm text-slate-600">Escola → Casa</Text>
         </Pressable>
       </View>
 
-      {direction === null ? (
-        <Text className="mt-8 text-center text-base text-slate-500">
-          Selecione o sentido para iniciar a sessão e ver o percurso.
-        </Text>
-      ) : (
-        <View className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-          <Text className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Percurso {direction === 'IDA' ? 'ida' : 'volta'}
-          </Text>
-          <RouteTimeline stops={stops} />
-        </View>
-      )}
-
-      {sessionForRoute?.status === 'COMPLETED' &&
-      sessionForRoute.routeId === route.id ? (
-        <View className="mt-6 rounded-2xl border border-brand bg-brand-light p-4">
-          <Text className="text-base font-bold text-brand-dark">
-            Viagem concluída. Ninguém ficou na van.
-          </Text>
-        </View>
-      ) : null}
-
-      {inProgress && sessionForRoute ? (
-        <View className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-          <Text className="text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Ponto {sessionForRoute.currentPointIndex + 1} de{' '}
-            {sessionForRoute.pointsList.length}
-          </Text>
-          <Text className="mt-1 text-xl font-bold text-slate-900">{pointName}</Text>
-          <Text className="mt-1 text-sm text-slate-500">
-            {dropoff ? 'Desembarque' : 'Embarque'} · Na van: {stats.present} ·
-            Faltas: {stats.absent} · Desembarcou: {stats.droppedOff}
-          </Text>
-
-          {pointStudents.length === 0 ? (
-            <Text className="mt-4 text-base text-slate-500">
-              Nenhum aluno pendente neste ponto.
+      {tab === 'execucao' ? (
+        <View className="flex-1">
+          <View className="border-b border-slate-200 bg-white px-4 py-3">
+            <Text className="text-sm font-semibold text-slate-700">
+              {stats.present} Presentes | {stats.absent} Ausentes |{' '}
+              {session.skippedPoints.length} Pulados
             </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              className="mt-2">
+              <View className="flex-row items-center">
+                {visualStops.map((node, index) => (
+                  <View key={`${node.key}-${index}`} className="mr-2 items-center">
+                    <View
+                      className={`h-10 w-10 items-center justify-center rounded-full ${
+                        node.kind === 'start'
+                          ? 'bg-blue-100'
+                          : node.kind === 'end'
+                            ? 'bg-slate-800'
+                            : 'bg-brand-light'
+                      }`}>
+                      <Feather
+                        name={
+                          node.kind === 'point'
+                            ? node.done
+                              ? 'check'
+                              : 'clock'
+                            : 'flag'
+                        }
+                        size={16}
+                        color={node.kind === 'end' ? '#F8FAFC' : '#1D4ED8'}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </ScrollView>
+            <Text className="mt-2 text-lg font-bold text-slate-900">
+              {dropoff ? 'Desembarque' : 'Embarque'} · {pointName}
+            </Text>
+          </View>
+
+          <View className="flex-row gap-2 px-4 py-3">
+            <Pressable
+              disabled={session.currentPointIndex === 0}
+              onPress={() => dispatch(goToPreviousPoint())}
+              className={`flex-1 items-center rounded-2xl border py-4 ${
+                session.currentPointIndex === 0
+                  ? 'border-slate-200 bg-slate-100'
+                  : 'border-slate-300 bg-white'
+              }`}>
+              <Text className="text-sm font-bold text-slate-700">Anterior</Text>
+            </Pressable>
+            <Pressable
+              disabled={!pointComplete || lastPoint}
+              onPress={() => dispatch(advanceToNextPoint())}
+              className={`flex-1 items-center rounded-2xl py-4 ${
+                pointComplete && !lastPoint ? 'bg-brand' : 'bg-slate-300'
+              }`}>
+              <Text className="text-sm font-bold text-white">Concluir</Text>
+            </Pressable>
+            <Pressable
+              disabled={!canSkip}
+              onPress={() => dispatch(skipCurrentPoint())}
+              className={`flex-1 items-center rounded-2xl border py-4 ${
+                canSkip ? 'border-slate-300 bg-white' : 'border-slate-200 bg-slate-100'
+              }`}>
+              <Text className="text-sm font-bold text-slate-700">Próximo</Text>
+            </Pressable>
+          </View>
+
+          <ScrollView className="flex-1" contentContainerClassName="px-4 pb-8">
+            {pointStudents.map((item) => {
+              const student = studentsById[item.studentId];
+              return (
+                <View
+                  key={item.studentId}
+                  className="mb-3 flex-row rounded-2xl border border-slate-200 bg-white p-3">
+                  {student?.photoUri ? (
+                    <Image
+                      source={{ uri: student.photoUri }}
+                      className="h-16 w-16 rounded-full bg-slate-200"
+                    />
+                  ) : (
+                    <View className="h-16 w-16 items-center justify-center rounded-full bg-slate-200">
+                      <Feather name="user" size={22} color="#94A3B8" />
+                    </View>
+                  )}
+                  <View className="ml-3 flex-1">
+                    <Text className="text-base font-semibold text-slate-900">
+                      {student?.name ?? 'Aluno'}
+                    </Text>
+                    <Text className="text-sm text-slate-500">{item.boardingPoint}</Text>
+                    <View className="mt-2 flex-row gap-2">
+                      {dropoff ? (
+                        <Pressable
+                          onPress={() =>
+                            dispatch(
+                              markStudentStatus({
+                                studentId: item.studentId,
+                                status: 'DROPPED_OFF',
+                              }),
+                            )
+                          }
+                          className="flex-1 items-center rounded-xl bg-emerald-600 py-3">
+                          <Text className="text-sm font-bold text-white">
+                            Desembarque
+                          </Text>
+                        </Pressable>
+                      ) : (
+                        <>
+                          <Pressable
+                            onPress={() =>
+                              dispatch(
+                                markStudentStatus({
+                                  studentId: item.studentId,
+                                  status: 'PRESENT',
+                                }),
+                              )
+                            }
+                            className="flex-1 items-center rounded-xl bg-emerald-600 py-3">
+                            <Text className="text-sm font-bold text-white">
+                              Presente
+                            </Text>
+                          </Pressable>
+                          <Pressable
+                            onPress={() =>
+                              dispatch(
+                                markStudentStatus({
+                                  studentId: item.studentId,
+                                  status: 'ABSENT',
+                                }),
+                              )
+                            }
+                            className="flex-1 items-center rounded-xl bg-orange-500 py-3">
+                            <Text className="text-sm font-bold text-white">
+                              Ausente
+                            </Text>
+                          </Pressable>
+                        </>
+                      )}
+                      <Pressable
+                        onPress={() =>
+                          openGuardianContact(student?.contactPhones[0] ?? '')
+                        }
+                        className="h-12 w-12 items-center justify-center rounded-xl bg-brand-light">
+                        <Feather name="phone" size={18} color="#0F6B4D" />
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+            {lastPoint ? (
+              <>
+                <Pressable
+                  disabled={!canFinish}
+                  onPress={() => dispatch(finishRouteExecution())}
+                  className={`mt-2 items-center rounded-2xl py-4 ${
+                    canFinish ? 'bg-brand' : 'bg-slate-300'
+                  }`}>
+                  <Text className="text-base font-bold text-white">
+                    Encerrar rota
+                  </Text>
+                </Pressable>
+                {!canFinish ? (
+                  <Text className="mt-2 text-center text-sm font-semibold text-red-600">
+                    Ainda há aluno na van.
+                  </Text>
+                ) : null}
+              </>
+            ) : null}
+          </ScrollView>
+        </View>
+      ) : (
+        <ScrollView className="flex-1" contentContainerClassName="p-4 pb-10">
+          {vehicle ? (
+            <BusSeatMap
+              seatsMap={vehicle.seatsMap}
+              studentsById={studentsById}
+              executionStatusByStudentId={executionStatusByStudentId}
+            />
           ) : (
-            pointStudents.map((item) => (
+            <Text className="text-sm text-slate-500">
+              Nenhum veículo vinculado aos alunos desta rota.
+            </Text>
+          )}
+          <Text className="mt-6 mb-2 text-sm font-bold text-slate-900">
+            Todos os alunos
+          </Text>
+          {Object.values(session.attendances).map((item) => {
+            const student = studentsById[item.studentId];
+            return (
               <View
                 key={item.studentId}
-                className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                <Text className="text-base font-semibold text-slate-900">
-                  {studentNames[item.studentId] ?? 'Aluno'}
-                </Text>
-                <Text className="mt-0.5 text-sm text-slate-500">
-                  {item.boardingPoint}
-                </Text>
-                <View className="mt-3 flex-row gap-2">
-                  {dropoff ? (
-                    <Pressable
-                      onPress={() =>
-                        dispatch(
-                          markStudentStatus({
-                            studentId: item.studentId,
-                            status: 'DROPPED_OFF',
-                          }),
-                        )
-                      }
-                      className="flex-1 items-center rounded-xl bg-brand py-3">
-                      <Text className="text-sm font-bold text-white">
-                        Desembarcou
-                      </Text>
-                    </Pressable>
+                className="mb-3 rounded-2xl border border-slate-200 bg-white p-3">
+                <View className="flex-row items-center">
+                  {student?.photoUri ? (
+                    <Image
+                      source={{ uri: student.photoUri }}
+                      className="h-16 w-16 rounded-full bg-slate-200"
+                    />
                   ) : (
-                    <>
-                      <Pressable
-                        onPress={() =>
-                          dispatch(
-                            markStudentStatus({
-                              studentId: item.studentId,
-                              status: 'PRESENT',
-                            }),
-                          )
-                        }
-                        className="flex-1 items-center rounded-xl bg-brand py-3">
-                        <Text className="text-sm font-bold text-white">
-                          Embarcou
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() =>
-                          dispatch(
-                            markStudentStatus({
-                              studentId: item.studentId,
-                              status: 'ABSENT',
-                            }),
-                          )
-                        }
-                        className="flex-1 items-center rounded-xl border border-slate-300 bg-white py-3">
-                        <Text className="text-sm font-bold text-slate-700">
-                          Faltou
-                        </Text>
-                      </Pressable>
-                    </>
+                    <View className="h-16 w-16 items-center justify-center rounded-full bg-slate-200">
+                      <Feather name="user" size={22} color="#94A3B8" />
+                    </View>
                   )}
+                  <View className="ml-3 flex-1">
+                    <Text className="text-base font-semibold text-slate-900">
+                      {student?.name ?? 'Aluno'}
+                    </Text>
+                    <Text className="text-xs text-slate-500">{item.status}</Text>
+                  </View>
+                  <Pressable
+                    onPress={() =>
+                      openGuardianContact(student?.contactPhones[0] ?? '')
+                    }
+                    className="h-12 w-12 items-center justify-center rounded-xl bg-brand-light">
+                    <Feather name="phone" size={18} color="#0F6B4D" />
+                  </Pressable>
+                </View>
+                <View className="mt-3 flex-row gap-2">
+                  <Pressable
+                    onPress={() =>
+                      dispatch(
+                        markStudentStatus({
+                          studentId: item.studentId,
+                          status: 'PENDING',
+                        }),
+                      )
+                    }
+                    className="flex-1 items-center rounded-xl border border-slate-300 py-3">
+                    <Text className="text-xs font-bold text-slate-700">
+                      Pendente
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() =>
+                      dispatch(
+                        markStudentStatus({
+                          studentId: item.studentId,
+                          status: 'PRESENT',
+                        }),
+                      )
+                    }
+                    className="flex-1 items-center rounded-xl bg-emerald-600 py-3">
+                    <Text className="text-sm font-bold text-white">Presente</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() =>
+                      dispatch(
+                        markStudentStatus({
+                          studentId: item.studentId,
+                          status: 'ABSENT',
+                        }),
+                      )
+                    }
+                    className="flex-1 items-center rounded-xl bg-orange-500 py-3">
+                    <Text className="text-sm font-bold text-white">Ausente</Text>
+                  </Pressable>
                 </View>
               </View>
-            ))
-          )}
-
-          <Pressable
-            disabled={!pointComplete || lastPoint}
-            onPress={() => dispatch(advanceToNextPoint())}
-            className={`mt-5 items-center rounded-2xl py-4 ${
-              pointComplete && !lastPoint ? 'bg-brand' : 'bg-slate-300'
-            }`}>
-            <Text className="text-base font-bold text-white">Concluir ponto</Text>
-          </Pressable>
-
-          {!lastPoint ? (
-            <Pressable
-              onPress={() => dispatch(skipCurrentPoint())}
-              className="mt-3 items-center rounded-2xl border border-slate-300 bg-white py-4">
-              <Text className="text-base font-semibold text-slate-700">
-                Pular ponto
-              </Text>
-            </Pressable>
-          ) : (
-            <>
-              <Pressable
-                disabled={!canFinish}
-                onPress={() => dispatch(finishRouteExecution())}
-                className={`mt-3 items-center rounded-2xl py-4 ${
-                  canFinish ? 'bg-brand' : 'bg-slate-300'
-                }`}>
-                <Text className="text-base font-bold text-white">
-                  Encerrar rota
-                </Text>
-              </Pressable>
-              {!canFinish ? (
-                <Text className="mt-3 text-center text-sm font-semibold text-red-600">
-                  Ainda há aluno na van. Desembarque todos para encerrar.
-                </Text>
-              ) : null}
-            </>
-          )}
-        </View>
-      ) : null}
-    </ScrollView>
+            );
+          })}
+        </ScrollView>
+      )}
+    </View>
   );
 }
