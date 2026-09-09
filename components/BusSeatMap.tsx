@@ -10,6 +10,7 @@ type BusSeatMapProps = {
   onSelectSeat?: (seatNumber: number) => void;
   studentsById?: Record<string, Student>;
   executionStatusByStudentId?: Record<string, ExecutionStatus>;
+  readOnly?: boolean;
 };
 
 function isOccupied(seat: SeatAssignment) {
@@ -38,6 +39,7 @@ function SeatSlot({
   onSelectSeat,
   studentsById,
   executionStatusByStudentId,
+  readOnly,
 }: {
   seat: SeatAssignment | null;
   selectedSeat?: number | null;
@@ -45,6 +47,7 @@ function SeatSlot({
   onSelectSeat?: (seatNumber: number) => void;
   studentsById?: Record<string, Student>;
   executionStatusByStudentId?: Record<string, ExecutionStatus>;
+  readOnly?: boolean;
 }) {
   if (!seat) {
     return <View className="h-12 w-12" />;
@@ -78,7 +81,7 @@ function SeatSlot({
         )}
       </View>
     );
-    if (!onSelectSeat) {
+    if (!onSelectSeat || readOnly) {
       return body;
     }
     return (
@@ -106,7 +109,7 @@ function SeatSlot({
     </View>
   );
 
-  if (!onSelectSeat) {
+  if (!onSelectSeat || readOnly) {
     return body;
   }
 
@@ -121,6 +124,7 @@ function SeatPair({
   onSelectSeat,
   studentsById,
   executionStatusByStudentId,
+  readOnly,
 }: {
   left: SeatAssignment | null;
   right: SeatAssignment | null;
@@ -129,6 +133,7 @@ function SeatPair({
   onSelectSeat?: (seatNumber: number) => void;
   studentsById?: Record<string, Student>;
   executionStatusByStudentId?: Record<string, ExecutionStatus>;
+  readOnly?: boolean;
 }) {
   return (
     <View className="flex-row items-center gap-1.5">
@@ -139,6 +144,7 @@ function SeatPair({
         onSelectSeat={onSelectSeat}
         studentsById={studentsById}
         executionStatusByStudentId={executionStatusByStudentId}
+        readOnly={readOnly}
       />
       <SeatSlot
         seat={right}
@@ -147,6 +153,7 @@ function SeatPair({
         onSelectSeat={onSelectSeat}
         studentsById={studentsById}
         executionStatusByStudentId={executionStatusByStudentId}
+        readOnly={readOnly}
       />
     </View>
   );
@@ -159,6 +166,7 @@ export function BusSeatMap({
   onSelectSeat,
   studentsById,
   executionStatusByStudentId,
+  readOnly,
 }: BusSeatMapProps) {
   const rows = chunkVisualRows(seatsMap);
 
@@ -181,6 +189,7 @@ export function BusSeatMap({
               onSelectSeat={onSelectSeat}
               studentsById={studentsById}
               executionStatusByStudentId={executionStatusByStudentId}
+              readOnly={readOnly}
             />
             <View className="w-6" />
             <SeatPair
@@ -191,6 +200,7 @@ export function BusSeatMap({
               onSelectSeat={onSelectSeat}
               studentsById={studentsById}
               executionStatusByStudentId={executionStatusByStudentId}
+              readOnly={readOnly}
             />
           </View>
         );

@@ -137,12 +137,47 @@ const migrations: MigrationManifest = {
       students: nextStudents,
     };
   },
+  4: (state: PersistedState) => {
+    if (!state || typeof state !== 'object') {
+      return state;
+    }
+    const root = state as PersistedState & {
+      attendance?: {
+        executionHistory?: unknown;
+        activeExecution?: Record<string, unknown> | null;
+      };
+    };
+    const attendance = root.attendance;
+    if (!attendance || typeof attendance !== 'object') {
+      return state;
+    }
+    const active = attendance.activeExecution;
+    let nextActive = active ?? null;
+    if (active && typeof active === 'object') {
+      nextActive = {
+        ...active,
+        startedAt:
+          typeof active.startedAt === 'string' ? active.startedAt : '',
+        pointLogs: Array.isArray(active.pointLogs) ? active.pointLogs : [],
+      };
+    }
+    return {
+      ...root,
+      attendance: {
+        ...attendance,
+        executionHistory: Array.isArray(attendance.executionHistory)
+          ? attendance.executionHistory
+          : [],
+        activeExecution: nextActive,
+      },
+    };
+  },
 };
 
 const persistConfig = {
   key: 'root',
   storage,
-  version: 3,
+  version: 4,
   timeout: 0,
   migrate: createMigrate(migrations, { debug: false }),
 };

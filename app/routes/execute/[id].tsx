@@ -382,7 +382,10 @@ export default function ExecuteRouteScreen() {
               <>
                 <Pressable
                   disabled={!canFinish}
-                  onPress={() => dispatch(finishRouteExecution())}
+                  onPress={() => {
+                    dispatch(finishRouteExecution());
+                    router.replace('/' as Href);
+                  }}
                   className={`mt-2 items-center rounded-2xl py-4 ${
                     canFinish ? 'bg-brand' : 'bg-slate-300'
                   }`}>
