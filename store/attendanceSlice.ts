@@ -1,5 +1,6 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { createSelector, createSlice, type PayloadAction } from '@reduxjs/toolkit';
 
+import type { RouteDirection } from '@/types';
 import type {
   AfternoonStatus,
   MorningStatus,
@@ -7,6 +8,16 @@ import type {
   Student,
   StudentAttendance,
 } from '@/types/attendance';
+import type { ActiveExecution, ExecutionStatus } from '@/types/execution';
+
+import {
+  buildOperationalPointsList,
+  canFinishRoute as computeCanFinishRoute,
+  hasPresentStudents,
+  isLastExecutionPoint,
+  isPointComplete as computeIsPointComplete,
+  studentsForCurrentPoint,
+} from './executionSession';
 
 const MOCK_STUDENTS: Student[] = [
   {
@@ -29,16 +40,31 @@ const MOCK_STUDENTS: Student[] = [
   },
 ];
 
+export type StartRouteExecutionPayload = {
+  routeId: string;
+  schoolId: string;
+  direction: RouteDirection;
+  boardingPoints: string[];
+  students: { studentId: string; boardingPoint: string }[];
+};
+
 export type AttendanceState = {
   students: Student[];
   attendance: Record<string, StudentAttendance>;
   shift: Shift;
+  activeExecution: ActiveExecution | null;
 };
 
 const initialState: AttendanceState = {
   students: MOCK_STUDENTS,
   attendance: {},
   shift: 'morning',
+  activeExecution: null,
+};
+
+type AttendanceRoot = {
+  attendance: AttendanceState;
+  schools: { entities: Record<string, { name?: string } | undefined> };
 };
 
 const attendanceSlice = createSlice({
@@ -64,17 +90,160 @@ const attendanceSlice = createSlice({
       const current = state.attendance[studentId];
       state.attendance[studentId] = { ...current, studentId, afternoon: status };
     },
+    startRouteExecution(state, action: PayloadAction<StartRouteExecutionPayload>) {
+      const { routeId, schoolId, direction, boardingPoints, students } =
+        action.payload;
+      const attendances: ActiveExecution['attendances'] = {};
+      for (const student of students) {
+        const boardingPoint = student.boardingPoint.trim();
+        if (!boardingPoint) {
+          continue;
+        }
+        attendances[student.studentId] = {
+          studentId: student.studentId,
+          boardingPoint,
+          status: 'PENDING',
+        };
+      }
+      state.activeExecution = {
+        id: Date.now().toString(),
+        routeId,
+        schoolId,
+        direction,
+        currentPointIndex: 0,
+        pointsList: buildOperationalPointsList(
+          direction,
+          boardingPoints,
+          schoolId,
+        ),
+        skippedPoints: [],
+        attendances,
+        status: 'IN_PROGRESS',
+      };
+    },
+    markStudentStatus(
+      state,
+      action: PayloadAction<{ studentId: string; status: ExecutionStatus }>,
+    ) {
+      const execution = state.activeExecution;
+      if (!execution || execution.status !== 'IN_PROGRESS') {
+        return;
+      }
+      const record = execution.attendances[action.payload.studentId];
+      if (!record) {
+        return;
+      }
+      const next = action.payload.status;
+      if (record.status === 'PENDING' && (next === 'PRESENT' || next === 'ABSENT')) {
+        record.status = next;
+        return;
+      }
+      if (record.status === 'PRESENT' && next === 'DROPPED_OFF') {
+        record.status = next;
+      }
+    },
+    advanceToNextPoint(state) {
+      const execution = state.activeExecution;
+      if (!execution || execution.status !== 'IN_PROGRESS') {
+        return;
+      }
+      if (isLastExecutionPoint(execution) || !computeIsPointComplete(execution)) {
+        return;
+      }
+      execution.currentPointIndex += 1;
+    },
+    skipCurrentPoint(state) {
+      const execution = state.activeExecution;
+      if (!execution || execution.status !== 'IN_PROGRESS') {
+        return;
+      }
+      if (isLastExecutionPoint(execution)) {
+        return;
+      }
+      const token = execution.pointsList[execution.currentPointIndex];
+      if (token) {
+        execution.skippedPoints.push(token);
+      }
+      execution.currentPointIndex += 1;
+    },
+    finishRouteExecution(state) {
+      const execution = state.activeExecution;
+      if (!execution || execution.status !== 'IN_PROGRESS') {
+        return;
+      }
+      if (hasPresentStudents(execution) || !isLastExecutionPoint(execution)) {
+        return;
+      }
+      execution.status = 'COMPLETED';
+    },
   },
 });
 
-export const { setShift, setMorningStatus, setAfternoonStatus } =
-  attendanceSlice.actions;
+export const {
+  setShift,
+  setMorningStatus,
+  setAfternoonStatus,
+  startRouteExecution,
+  markStudentStatus,
+  advanceToNextPoint,
+  skipCurrentPoint,
+  finishRouteExecution,
+} = attendanceSlice.actions;
 
-export const selectStudents = (state: { attendance: AttendanceState }) =>
-  state.attendance.students;
-export const selectAttendance = (state: { attendance: AttendanceState }) =>
+export const selectStudents = (state: AttendanceRoot) => state.attendance.students;
+export const selectAttendance = (state: AttendanceRoot) =>
   state.attendance.attendance;
-export const selectShift = (state: { attendance: AttendanceState }) =>
-  state.attendance.shift;
+export const selectShift = (state: AttendanceRoot) => state.attendance.shift;
+export const selectActiveExecution = (state: AttendanceRoot) =>
+  state.attendance.activeExecution ?? null;
+
+export const selectCurrentPointName = createSelector(
+  [selectActiveExecution, (state: AttendanceRoot) => state.schools.entities],
+  (execution, schools) => {
+    if (!execution) {
+      return '';
+    }
+    const token = execution.pointsList[execution.currentPointIndex];
+    if (!token) {
+      return '';
+    }
+    if (token === execution.schoolId) {
+      return schools[execution.schoolId]?.name ?? 'Escola';
+    }
+    return token;
+  },
+);
+
+export const selectExecutionStats = createSelector(
+  [selectActiveExecution],
+  (execution) => {
+    if (!execution) {
+      return { pending: 0, present: 0, absent: 0, droppedOff: 0, total: 0 };
+    }
+    const values = Object.values(execution.attendances);
+    return {
+      pending: values.filter((item) => item.status === 'PENDING').length,
+      present: values.filter((item) => item.status === 'PRESENT').length,
+      absent: values.filter((item) => item.status === 'ABSENT').length,
+      droppedOff: values.filter((item) => item.status === 'DROPPED_OFF').length,
+      total: values.length,
+    };
+  },
+);
+
+export const selectStudentsForCurrentPoint = createSelector(
+  [selectActiveExecution],
+  (execution) => (execution ? studentsForCurrentPoint(execution) : []),
+);
+
+export const selectIsPointComplete = createSelector(
+  [selectActiveExecution],
+  (execution) => (execution ? computeIsPointComplete(execution) : false),
+);
+
+export const selectCanFinishRoute = createSelector(
+  [selectActiveExecution],
+  (execution) => (execution ? computeCanFinishRoute(execution) : false),
+);
 
 export default attendanceSlice.reducer;
