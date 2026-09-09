@@ -1,10 +1,14 @@
 import { Feather } from '@expo/vector-icons';
 import { type Href, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { BusSeatMap } from '@/components/BusSeatMap';
-import { openGuardianContact } from '@/lib/contactGuardian';
+import { AppAlert, type AppAlertState } from '@/components/AppAlert';
+import { GuardianContactSheet, startGuardianContact } from '@/components/GuardianContactSheet';
+import { SnakePathTimeline, type SnakeStop } from '@/components/SnakePathTimeline';
+import { StudentAvatar } from '@/components/StudentAvatar';
+import { StudentPhotoPreview } from '@/components/StudentPhotoPreview';
 import {
   advanceToNextPoint,
   finishRouteExecution,
@@ -36,7 +40,7 @@ function MissedIdaBadge({ show }: { show: boolean }) {
     return null;
   }
   return (
-    <View className="mt-1 self-start rounded-md bg-amber-400 px-2 py-0.5">
+    <View className="mt-1 self-start rounded-md bg-amber-100 px-2 py-1">
       <Text className="text-xs font-bold text-amber-950">⚠️ Faltou na Ida</Text>
     </View>
   );
@@ -73,6 +77,12 @@ export default function ExecuteRouteScreen() {
   const dispatch = useAppDispatch();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [tab, setTab] = useState<'execucao' | 'resumo'>('execucao');
+  const [alert, setAlert] = useState<AppAlertState>(null);
+  const [photoPreview, setPhotoPreview] = useState<{
+    name: string;
+    uri: string;
+  } | null>(null);
+  const [contactPhones, setContactPhones] = useState<string[] | null>(null);
   const route = useAppSelector((state) =>
     id ? selectRouteById(state, id) : undefined,
   );
@@ -141,43 +151,68 @@ export default function ExecuteRouteScreen() {
         ? route.boardingPoints
         : [...route.boardingPoints].reverse();
     const startDone = true;
-    const nodes: { key: string; kind: 'start' | 'point' | 'end'; done: boolean }[] =
-      [];
+    const nodes: {
+      key: string;
+      kind: 'start' | 'point' | 'end';
+      done: boolean;
+      label: string;
+    }[] = [];
     if (session.direction === 'IDA') {
-      nodes.push({ key: 'start', kind: 'start', done: startDone });
+      nodes.push({
+        key: 'start',
+        kind: 'start',
+        done: startDone,
+        label: route.startPoint,
+      });
       boarding.forEach((point, index) => {
         nodes.push({
           key: point,
           kind: 'point',
           done: session.currentPointIndex > index,
+          label: point,
         });
       });
       nodes.push({
         key: 'school',
         kind: 'end',
         done: session.currentPointIndex > route.boardingPoints.length,
+        label: schoolName,
       });
     } else {
       nodes.push({
         key: 'school',
         kind: 'end',
         done: session.currentPointIndex > 0,
+        label: schoolName,
       });
       boarding.forEach((point, index) => {
         nodes.push({
           key: point,
           kind: 'point',
           done: session.currentPointIndex > index + 1,
+          label: point,
         });
       });
       nodes.push({
         key: 'start',
         kind: 'start',
         done: session.currentPointIndex >= session.pointsList.length,
+        label: route.startPoint,
       });
     }
     return nodes;
-  }, [route, session]);
+  }, [route, schoolName, session]);
+
+  const snakeStops: SnakeStop[] = useMemo(() => {
+    const current = visualStops.findIndex((node) => !node.done);
+    return visualStops.map((node, index) => ({
+      key: `${node.key}-${index}`,
+      label: node.label,
+      status: node.done ? 'done' : index === current ? 'current' : 'pending',
+      icon:
+        node.kind === 'point' ? (node.done ? 'check' : 'clock') : 'flag',
+    }));
+  }, [visualStops]);
 
   if (!route) {
     return (
@@ -251,40 +286,18 @@ export default function ExecuteRouteScreen() {
               {stats.present} Presentes | {stats.absent} Ausentes |{' '}
               {session.skippedPoints.length} Pulados
             </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              className="mt-2">
-              <View className="flex-row items-center">
-                {visualStops.map((node, index) => (
-                  <View key={`${node.key}-${index}`} className="mr-2 items-center">
-                    <View
-                      className={`h-10 w-10 items-center justify-center rounded-full ${
-                        node.kind === 'start'
-                          ? 'bg-blue-100'
-                          : node.kind === 'end'
-                            ? 'bg-slate-800'
-                            : 'bg-brand-light'
-                      }`}>
-                      <Feather
-                        name={
-                          node.kind === 'point'
-                            ? node.done
-                              ? 'check'
-                              : 'clock'
-                            : 'flag'
-                        }
-                        size={16}
-                        color={node.kind === 'end' ? '#F8FAFC' : '#1D4ED8'}
-                      />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            </ScrollView>
-            <Text className="mt-2 text-lg font-bold text-slate-900">
-              {dropoff ? 'Desembarque' : 'Embarque'} · {pointName}
-            </Text>
+            <View className="mt-3 rounded-2xl border border-brand bg-brand-light px-4 py-4">
+              <Text className="text-xs font-bold uppercase text-brand-dark">
+                Parada atual
+              </Text>
+              <Text className="mt-1 text-xl font-bold text-slate-900">
+                {dropoff ? 'Desembarque' : 'Embarque'}
+              </Text>
+              <Text className="mt-1 text-lg font-semibold text-brand-dark">
+                {pointName}
+              </Text>
+            </View>
+            <SnakePathTimeline stops={snakeStops} />
           </View>
 
           <View className="flex-row gap-2 px-4 py-3">
@@ -299,8 +312,21 @@ export default function ExecuteRouteScreen() {
               <Text className="text-sm font-bold text-slate-700">Anterior</Text>
             </Pressable>
             <Pressable
-              disabled={!pointComplete || lastPoint}
-              onPress={() => dispatch(advanceToNextPoint())}
+              onPress={() => {
+                if (lastPoint) {
+                  return;
+                }
+                if (!pointComplete) {
+                  setAlert({
+                    kind: 'error',
+                    title: 'Não é possível concluir',
+                    message:
+                      'Ainda há aluno neste ponto sem marcação. Marque todos antes de avançar.',
+                  });
+                  return;
+                }
+                dispatch(advanceToNextPoint());
+              }}
               className={`flex-1 items-center rounded-2xl py-4 ${
                 pointComplete && !lastPoint ? 'bg-brand' : 'bg-slate-300'
               }`}>
@@ -323,16 +349,18 @@ export default function ExecuteRouteScreen() {
                 <View
                   key={item.studentId}
                   className="mb-3 flex-row rounded-2xl border border-slate-200 bg-white p-3">
-                  {student?.photoUri ? (
-                    <Image
-                      source={{ uri: student.photoUri }}
-                      className="h-16 w-16 rounded-full bg-slate-200"
-                    />
-                  ) : (
-                    <View className="h-16 w-16 items-center justify-center rounded-full bg-slate-200">
-                      <Feather name="user" size={22} color="#94A3B8" />
-                    </View>
-                  )}
+                  <StudentAvatar
+                    photoUri={student?.photoUri}
+                    onLongPress={
+                      student?.photoUri
+                        ? () =>
+                            setPhotoPreview({
+                              name: student.name,
+                              uri: student.photoUri ?? '',
+                            })
+                        : undefined
+                    }
+                  />
                   <View className="ml-3 flex-1">
                     <Text className="text-base font-semibold text-slate-900">
                       {student?.name ?? 'Aluno'}
@@ -389,7 +417,7 @@ export default function ExecuteRouteScreen() {
                       )}
                       <Pressable
                         onPress={() =>
-                          openGuardianContact(student?.contactPhones[0] ?? '')
+                          startGuardianContact(student?.contactPhones, setContactPhones)
                         }
                         className="h-12 w-12 items-center justify-center rounded-xl bg-brand-light">
                         <Feather name="phone" size={18} color="#0F6B4D" />
@@ -446,16 +474,18 @@ export default function ExecuteRouteScreen() {
                 key={item.studentId}
                 className="mb-3 rounded-2xl border border-slate-200 bg-white p-3">
                 <View className="flex-row items-center">
-                  {student?.photoUri ? (
-                    <Image
-                      source={{ uri: student.photoUri }}
-                      className="h-16 w-16 rounded-full bg-slate-200"
-                    />
-                  ) : (
-                    <View className="h-16 w-16 items-center justify-center rounded-full bg-slate-200">
-                      <Feather name="user" size={22} color="#94A3B8" />
-                    </View>
-                  )}
+                  <StudentAvatar
+                    photoUri={student?.photoUri}
+                    onLongPress={
+                      student?.photoUri
+                        ? () =>
+                            setPhotoPreview({
+                              name: student.name,
+                              uri: student.photoUri ?? '',
+                            })
+                        : undefined
+                    }
+                  />
                   <View className="ml-3 flex-1">
                     <Text className="text-base font-semibold text-slate-900">
                       {student?.name ?? 'Aluno'}
@@ -465,7 +495,7 @@ export default function ExecuteRouteScreen() {
                   </View>
                   <Pressable
                     onPress={() =>
-                      openGuardianContact(student?.contactPhones[0] ?? '')
+                      startGuardianContact(student?.contactPhones, setContactPhones)
                     }
                     className="h-12 w-12 items-center justify-center rounded-xl bg-brand-light">
                     <Feather name="phone" size={18} color="#0F6B4D" />
@@ -516,6 +546,18 @@ export default function ExecuteRouteScreen() {
           })}
         </ScrollView>
       )}
+      <AppAlert alert={alert} onDismiss={() => setAlert(null)} />
+      <StudentPhotoPreview
+        visible={photoPreview !== null}
+        name={photoPreview?.name ?? ''}
+        photoUri={photoPreview?.uri}
+        onClose={() => setPhotoPreview(null)}
+      />
+      <GuardianContactSheet
+        phones={contactPhones ?? []}
+        visible={contactPhones !== null}
+        onClose={() => setContactPhones(null)}
+      />
     </View>
   );
 }
