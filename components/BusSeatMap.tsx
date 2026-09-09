@@ -1,12 +1,15 @@
-import { Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 
-import type { SeatAssignment } from '@/types';
+import type { SeatAssignment, Student } from '@/types';
+import type { ExecutionStatus } from '@/types/execution';
 
 type BusSeatMapProps = {
   seatsMap: SeatAssignment[];
   selectedSeat?: number | null;
   currentStudentId?: string;
   onSelectSeat?: (seatNumber: number) => void;
+  studentsById?: Record<string, Student>;
+  executionStatusByStudentId?: Record<string, ExecutionStatus>;
 };
 
 function isOccupied(seat: SeatAssignment) {
@@ -33,21 +36,55 @@ function SeatSlot({
   selectedSeat,
   currentStudentId,
   onSelectSeat,
+  studentsById,
+  executionStatusByStudentId,
 }: {
   seat: SeatAssignment | null;
   selectedSeat?: number | null;
   currentStudentId?: string;
   onSelectSeat?: (seatNumber: number) => void;
+  studentsById?: Record<string, Student>;
+  executionStatusByStudentId?: Record<string, ExecutionStatus>;
 }) {
   if (!seat) {
     return <View className="h-12 w-12" />;
   }
 
   const occupied = isOccupied(seat);
+  const student =
+    occupied && seat.studentId ? studentsById?.[seat.studentId] : undefined;
+  const executionStatus = seat.studentId
+    ? executionStatusByStudentId?.[seat.studentId]
+    : undefined;
+  const absent = executionStatus === 'ABSENT';
   const ownSeat =
     currentStudentId !== undefined && seat.studentId === currentStudentId;
-  const takenByOther = occupied && !ownSeat;
+  const takenByOther = occupied && !ownSeat && !studentsById;
   const selected = selectedSeat === seat.seatNumber || ownSeat;
+
+  if (studentsById && occupied) {
+    const photo = student?.photoUri;
+    const body = (
+      <View
+        className={`h-12 w-12 items-center justify-center overflow-hidden rounded-xl border-4 ${
+          absent ? 'border-yellow-400' : 'border-slate-200'
+        } bg-slate-200`}>
+        {photo ? (
+          <Image source={{ uri: photo }} className="h-full w-full" />
+        ) : (
+          <Text className="text-[10px] font-bold text-slate-600">
+            {seat.seatNumber}
+          </Text>
+        )}
+      </View>
+    );
+    if (!onSelectSeat) {
+      return body;
+    }
+    return (
+      <Pressable onPress={() => onSelectSeat(seat.seatNumber)}>{body}</Pressable>
+    );
+  }
 
   if (takenByOther) {
     return (
@@ -73,9 +110,7 @@ function SeatSlot({
     return body;
   }
 
-  return (
-    <Pressable onPress={() => onSelectSeat(seat.seatNumber)}>{body}</Pressable>
-  );
+  return <Pressable onPress={() => onSelectSeat(seat.seatNumber)}>{body}</Pressable>;
 }
 
 function SeatPair({
@@ -84,12 +119,16 @@ function SeatPair({
   selectedSeat,
   currentStudentId,
   onSelectSeat,
+  studentsById,
+  executionStatusByStudentId,
 }: {
   left: SeatAssignment | null;
   right: SeatAssignment | null;
   selectedSeat?: number | null;
   currentStudentId?: string;
   onSelectSeat?: (seatNumber: number) => void;
+  studentsById?: Record<string, Student>;
+  executionStatusByStudentId?: Record<string, ExecutionStatus>;
 }) {
   return (
     <View className="flex-row items-center gap-1.5">
@@ -98,12 +137,16 @@ function SeatPair({
         selectedSeat={selectedSeat}
         currentStudentId={currentStudentId}
         onSelectSeat={onSelectSeat}
+        studentsById={studentsById}
+        executionStatusByStudentId={executionStatusByStudentId}
       />
       <SeatSlot
         seat={right}
         selectedSeat={selectedSeat}
         currentStudentId={currentStudentId}
         onSelectSeat={onSelectSeat}
+        studentsById={studentsById}
+        executionStatusByStudentId={executionStatusByStudentId}
       />
     </View>
   );
@@ -114,6 +157,8 @@ export function BusSeatMap({
   selectedSeat = null,
   currentStudentId,
   onSelectSeat,
+  studentsById,
+  executionStatusByStudentId,
 }: BusSeatMapProps) {
   const rows = chunkVisualRows(seatsMap);
 
@@ -134,6 +179,8 @@ export function BusSeatMap({
               selectedSeat={selectedSeat}
               currentStudentId={currentStudentId}
               onSelectSeat={onSelectSeat}
+              studentsById={studentsById}
+              executionStatusByStudentId={executionStatusByStudentId}
             />
             <View className="w-6" />
             <SeatPair
@@ -142,23 +189,34 @@ export function BusSeatMap({
               selectedSeat={selectedSeat}
               currentStudentId={currentStudentId}
               onSelectSeat={onSelectSeat}
+              studentsById={studentsById}
+              executionStatusByStudentId={executionStatusByStudentId}
             />
           </View>
         );
       })}
       <View className="mt-2 flex-row justify-center gap-4">
-        <View className="flex-row items-center gap-1.5">
-          <View className="h-3 w-3 rounded-sm bg-emerald-500" />
-          <Text className="text-xs text-slate-600">Livre</Text>
-        </View>
-        <View className="flex-row items-center gap-1.5">
-          <View className="h-3 w-3 rounded-sm bg-red-500" />
-          <Text className="text-xs text-slate-600">Ocupado</Text>
-        </View>
-        <View className="flex-row items-center gap-1.5">
-          <View className="h-3 w-3 rounded-sm bg-brand" />
-          <Text className="text-xs text-slate-600">Selecionado</Text>
-        </View>
+        {studentsById ? (
+          <View className="flex-row items-center gap-1.5">
+            <View className="h-3 w-3 rounded-sm border-2 border-yellow-400 bg-white" />
+            <Text className="text-xs text-slate-600">Ausente</Text>
+          </View>
+        ) : (
+          <>
+            <View className="flex-row items-center gap-1.5">
+              <View className="h-3 w-3 rounded-sm bg-emerald-500" />
+              <Text className="text-xs text-slate-600">Livre</Text>
+            </View>
+            <View className="flex-row items-center gap-1.5">
+              <View className="h-3 w-3 rounded-sm bg-red-500" />
+              <Text className="text-xs text-slate-600">Ocupado</Text>
+            </View>
+            <View className="flex-row items-center gap-1.5">
+              <View className="h-3 w-3 rounded-sm bg-brand" />
+              <Text className="text-xs text-slate-600">Selecionado</Text>
+            </View>
+          </>
+        )}
       </View>
     </View>
   );

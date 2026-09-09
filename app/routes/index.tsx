@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 
+import { StartRouteSheet } from '@/components/StartRouteSheet';
 import {
   buildRouteTimelineStops,
   RouteTimeline,
@@ -10,6 +11,7 @@ import { removeRoute, selectAllRoutes } from '@/store/routeSlice';
 import { updateSchool } from '@/store/schoolSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { Route, RoutePeriod } from '@/types';
+import { useState } from 'react';
 
 const PERIOD_LABEL: Record<RoutePeriod, string> = {
   Manha: 'Manhã',
@@ -22,13 +24,14 @@ export default function RoutesListScreen() {
   const dispatch = useAppDispatch();
   const routes = useAppSelector(selectAllRoutes);
   const schoolEntities = useAppSelector((state) => state.schools.entities);
+  const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
 
   function handleCreate() {
     router.push('/routes/new' as Href);
   }
 
-  function handleExecute(routeId: string) {
-    router.push(`/routes/execute/${routeId}` as Href);
+  function handleExecute(route: Route) {
+    setSelectedRoute(route);
   }
 
   function handleEdit(routeId: string) {
@@ -115,7 +118,7 @@ export default function RoutesListScreen() {
                   )}
                 />
                 <Pressable
-                  onPress={() => handleExecute(route.id)}
+                  onPress={() => handleExecute(route)}
                   className="mt-3 items-center rounded-xl bg-brand py-3">
                   <Text className="text-base font-bold text-white">Executar</Text>
                 </Pressable>
@@ -130,6 +133,11 @@ export default function RoutesListScreen() {
         className="absolute bottom-6 left-4 right-4 items-center rounded-2xl bg-brand py-4 shadow-lg">
         <Text className="text-base font-bold text-white">Adicionar Nova Rota</Text>
       </Pressable>
+      <StartRouteSheet
+        route={selectedRoute}
+        visible={selectedRoute !== null}
+        onClose={() => setSelectedRoute(null)}
+      />
     </View>
   );
 }
