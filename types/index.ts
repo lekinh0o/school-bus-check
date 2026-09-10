@@ -27,6 +27,8 @@ export type RoutePeriod = 'Manha' | 'Tarde' | 'Noite';
 
 export type RouteDirection = 'IDA' | 'VOLTA';
 
+export type OperationType = 'IDA_E_VOLTA' | 'SOMENTE_IDA' | 'SOMENTE_VOLTA';
+
 export type Route = {
   id: string;
   title: string;
@@ -40,6 +42,7 @@ export type Route = {
   departureTimeVolta: string;
   arrivalTimeVolta: string;
   period: RoutePeriod;
+  operationType: OperationType;
   responsiblePhotoUri?: string;
 };
 

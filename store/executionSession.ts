@@ -72,6 +72,23 @@ export function latestCompletedIda(
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
 }
 
+export function incompleteIdaTrip(
+  history: RouteHistory[],
+  routeId: string,
+): RouteHistory | undefined {
+  if (!routeId) {
+    return undefined;
+  }
+  const trips = history
+    .filter((trip) => trip.routeId === routeId)
+    .sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+  const last = trips[trips.length - 1];
+  if (!last || last.direction !== 'IDA') {
+    return undefined;
+  }
+  return last;
+}
+
 export function absentStudentIdsFromTrip(
   trip: RouteHistory | undefined,
 ): Record<string, true> {

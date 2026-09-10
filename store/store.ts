@@ -216,12 +216,49 @@ const migrations: MigrationManifest = {
       },
     };
   },
+  6: (state: PersistedState) => {
+    if (!state || typeof state !== 'object') {
+      return state;
+    }
+
+    const root = state as PersistedState & { routes?: PersistedEntitySlice };
+    const routes = root.routes;
+    if (!routes?.entities) {
+      return state;
+    }
+
+    const entities = { ...routes.entities };
+    for (const id of Object.keys(entities)) {
+      const route = entities[id];
+      if (!route) {
+        continue;
+      }
+      const operationType =
+        route.operationType === 'SOMENTE_IDA' ||
+        route.operationType === 'SOMENTE_VOLTA' ||
+        route.operationType === 'IDA_E_VOLTA'
+          ? route.operationType
+          : 'IDA_E_VOLTA';
+      entities[id] = {
+        ...route,
+        operationType,
+      };
+    }
+
+    return {
+      ...root,
+      routes: {
+        ...routes,
+        entities,
+      },
+    };
+  },
 };
 
 const persistConfig = {
   key: 'root',
   storage,
-  version: 5,
+  version: 6,
   timeout: 0,
   migrate: createMigrate(migrations, { debug: false }),
 };

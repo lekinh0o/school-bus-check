@@ -15,14 +15,21 @@ import {
 import { addRoute, selectRouteById, updateRoute } from '@/store/routeSlice';
 import { selectAllSchools, updateSchool } from '@/store/schoolSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
-import type { RoutePeriod } from '@/types';
+import type { OperationType, RoutePeriod } from '@/types';
 import { formatTimeInput, isValidHhMm } from '@/lib/inputMasks';
+import { OPERATION_TYPE_LABEL } from '@/lib/operationType';
 import { pickLocalImage } from '@/lib/pickImage';
 
 const PERIOD_OPTIONS: { value: RoutePeriod; label: string }[] = [
   { value: 'Manha', label: 'Manhã' },
   { value: 'Tarde', label: 'Tarde' },
   { value: 'Noite', label: 'Noite' },
+];
+
+const OPERATION_OPTIONS: OperationType[] = [
+  'IDA_E_VOLTA',
+  'SOMENTE_IDA',
+  'SOMENTE_VOLTA',
 ];
 
 function withRouteId(routeIds: string[], routeId: string): string[] {
@@ -53,6 +60,8 @@ export default function RouteFormScreen() {
   const [departureTimeVolta, setDepartureTimeVolta] = useState('');
   const [arrivalTimeVolta, setArrivalTimeVolta] = useState('');
   const [period, setPeriod] = useState<RoutePeriod | null>(null);
+  const [operationType, setOperationType] =
+    useState<OperationType>('IDA_E_VOLTA');
   const [schoolId, setSchoolId] = useState('');
   const [boardingPoints, setBoardingPoints] = useState<string[]>([]);
   const [pointDraft, setPointDraft] = useState('');
@@ -73,6 +82,7 @@ export default function RouteFormScreen() {
     setDepartureTimeVolta(existing.departureTimeVolta);
     setArrivalTimeVolta(existing.arrivalTimeVolta);
     setPeriod(existing.period);
+    setOperationType(existing.operationType ?? 'IDA_E_VOLTA');
     setSchoolId(existing.schoolId);
     setBoardingPoints(existing.boardingPoints);
     setResponsiblePhotoUri(existing.responsiblePhotoUri);
@@ -140,6 +150,7 @@ export default function RouteFormScreen() {
       departureTimeVolta: departureTimeVolta.trim(),
       arrivalTimeVolta: arrivalTimeVolta.trim(),
       period,
+      operationType,
       responsiblePhotoUri,
     };
 
@@ -330,6 +341,32 @@ export default function RouteFormScreen() {
                     selected ? 'text-brand-dark' : 'text-slate-600'
                   }`}>
                   {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
+          Tipo de operação
+        </Text>
+        <View className="gap-2">
+          {OPERATION_OPTIONS.map((value) => {
+            const selected = operationType === value;
+            return (
+              <Pressable
+                key={value}
+                onPress={() => setOperationType(value)}
+                className={`items-center rounded-2xl border py-3 ${
+                  selected
+                    ? 'border-brand bg-brand-light'
+                    : 'border-slate-200 bg-white'
+                }`}>
+                <Text
+                  className={`text-sm font-semibold ${
+                    selected ? 'text-brand-dark' : 'text-slate-600'
+                  }`}>
+                  {OPERATION_TYPE_LABEL[value]}
                 </Text>
               </Pressable>
             );

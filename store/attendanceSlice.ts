@@ -21,6 +21,7 @@ import {
   buildOperationalPointsList,
   canFinishRoute as computeCanFinishRoute,
   hasPresentStudents,
+  incompleteIdaTrip,
   isDropoffStop,
   isLastExecutionPoint,
   isPointComplete as computeIsPointComplete,
@@ -252,6 +253,22 @@ const attendanceSlice = createSlice({
       state.executionHistory.unshift(toRouteHistory(execution, finishedAt));
       state.activeExecution = null;
     },
+    justifyIncompleteCycle(
+      state,
+      action: PayloadAction<{
+        routeId: string;
+        justification: CycleJustification;
+      }>,
+    ) {
+      const trip = incompleteIdaTrip(
+        state.executionHistory ?? [],
+        action.payload.routeId,
+      );
+      if (!trip) {
+        return;
+      }
+      trip.cycleJustification = { ...action.payload.justification };
+    },
   },
 });
 
@@ -265,6 +282,7 @@ export const {
   goToPreviousPoint,
   skipCurrentPoint,
   finishRouteExecution,
+  justifyIncompleteCycle,
 } = attendanceSlice.actions;
 
 export const selectStudents = (state: AttendanceRoot) => state.attendance.students;
@@ -323,6 +341,14 @@ export const selectIsPointComplete = createSelector(
 export const selectCanFinishRoute = createSelector(
   [selectActiveExecution],
   (execution) => (execution ? computeCanFinishRoute(execution) : false),
+);
+
+export const selectIncompleteIdaTrip = createSelector(
+  [
+    selectExecutionHistory,
+    (_state: AttendanceRoot, routeId: string) => routeId,
+  ],
+  (history, routeId) => incompleteIdaTrip(history, routeId),
 );
 
 export const selectHasCompletedIdaToday = createSelector(
