@@ -35,6 +35,7 @@ import { selectVehicleById } from '@/store/vehicleSlice';
 import type { ExecutionStatus } from '@/types/execution';
 import type { Student } from '@/types';
 import { findBoardingPointByName } from '@/lib/boardingPoints';
+import { entityCoords } from '@/lib/geocode';
 import { openNavigation, type NavigationApp } from '@/lib/mapNavigation';
 import { formatRouteTimeWindow } from '@/lib/routeSchedule';
 
@@ -159,8 +160,16 @@ export default function ExecuteRouteScreen() {
       return;
     }
     const token = session.pointsList?.[session.currentPointIndex] ?? '';
-    const point = findBoardingPointByName(route.boardingPoints, token);
-    const result = await openNavigation(point?.latitude, point?.longitude, app);
+    const coords =
+      token === session.schoolId
+        ? entityCoords(school)
+        : token === route.startPoint
+          ? entityCoords({
+              latitude: route.startLatitude,
+              longitude: route.startLongitude,
+            })
+          : entityCoords(findBoardingPointByName(route.boardingPoints, token));
+    const result = await openNavigation(coords?.latitude, coords?.longitude, app);
     if (result.ok) {
       return;
     }
@@ -172,7 +181,7 @@ export default function ExecuteRouteScreen() {
           : 'Não foi possível abrir',
       message:
         result.reason === 'missing_coords'
-          ? 'Este ponto não possui coordenadas geográficas cadastradas.'
+          ? 'Este ponto não possui coordenadas geográficas cadastradas. Marque o local no cadastro da rota ou da escola.'
           : 'Não foi possível abrir o aplicativo de mapas.',
     });
   }

@@ -21,6 +21,8 @@ export type School = {
   studentIds: string[];
   routeIds: string[];
   photoUri?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export type RoutePeriod = 'Manha' | 'Tarde' | 'Noite';
@@ -42,6 +44,8 @@ export type Route = {
   responsible: string;
   monitor: string;
   startPoint: string;
+  startLatitude?: number;
+  startLongitude?: number;
   boardingPoints: BoardingPoint[];
   schoolId: string;
   departureTimeIda: string;

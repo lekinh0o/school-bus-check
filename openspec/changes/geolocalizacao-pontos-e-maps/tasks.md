@@ -10,6 +10,7 @@
 - [x] 2.1 Formulário `app/routes/[id].tsx`: lista de objetos; mapa para marcar o ponto (busca + pino); GPS atual só como atalho; nome duplicado bloqueado
 - [x] 2.2 `addBoardingPointToRoute` e `app/students/[id].tsx`: sugestões pelo `.name`; ponto novo na rota sem coordenadas
 - [x] 2.3 Listagens/timelines (`app/routes/index.tsx`, Início, histórico) passam `.name`; `StartRouteSheet` inicia sessão com nomes
+- [x] 2.4 Ponto de início da rota e cadastro da escola marcam local no mapa; execução usa essas coordenadas
 
 ## 3. Execução e mapas
 

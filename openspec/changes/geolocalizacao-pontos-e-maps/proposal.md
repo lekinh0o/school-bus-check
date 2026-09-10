@@ -6,10 +6,10 @@ O motorista precisa abrir o GPS da parada atual na central multimídia (Google M
 
 - Cada ponto de embarque da rota passa a ser um objeto com identificador, nome e coordenadas **opcionais** (não obrigatórias no cadastro).
 - **BREAKING** no modelo persistido: `Route.boardingPoints` deixa de ser `string[]`. Rotas antigas MUST ser migradas localmente (nome vira objeto; sem GPS).
-- O cadastro da rota marca o local **no mapa** (busca de endereço ou toque no pino), sem exigir ir até a rua. GPS atual do aparelho fica como atalho.
-- Na tab Execução, um atalho abre Maps ou Waze no ponto atual quando houver coordenadas; senão, alerta amigável.
+- O cadastro da rota marca no mapa o **ponto de início** e os pontos de embarque. O cadastro da escola marca o local da escola. GPS atual do aparelho fica como atalho nos embarques.
+- Na tab Execução, Maps/Waze usam as coordenadas da parada atual (embarque, início ou escola).
 - O vínculo do aluno com o ponto continua sendo o **nome** (texto). Novo ponto criado pelo cadastro de aluno entra na rota sem coordenadas.
-- Fora desta change: geofence, áudio, coordenadas de ponto de início e da escola, migrar `Student.boardingPoint` para id.
+- Fora desta change: geofence, áudio, migrar `Student.boardingPoint` para id.
 
 ## Capabilities
 
@@ -19,9 +19,10 @@ O motorista precisa abrir o GPS da parada atual na central multimídia (Google M
 
 ### Modified Capabilities
 
-- `route-registry`: pontos de embarque estruturados; mapa no formulário; listagens/timeline usam o nome.
+- `route-registry`: pontos de embarque estruturados; mapa no início e nos embarques.
+- `school-registry`: localização opcional da escola no mapa.
 - `student-registry`: sugestões e persistência usam o nome do objeto; ponto novo na rota nasce sem coordenadas.
-- `route-execution`: atalho de navegação externa na parada atual; deep link Maps/Waze; alerta se faltar GPS ou o app não abrir.
+- `route-execution`: atalho Maps/Waze na parada atual (embarque, início ou escola).
 
 ## Impact
 

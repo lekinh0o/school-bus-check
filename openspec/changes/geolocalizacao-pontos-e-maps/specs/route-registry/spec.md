@@ -11,6 +11,13 @@ O sistema SHALL persistir cada ponto de embarque da rota com identificador está
 - **WHEN** o app reabre dados em que o ponto era só um texto
 - **THEN** o ponto aparece com o mesmo nome e a rota permanece editável
 
+### Requirement: Local do ponto de início no mapa
+O formulário da rota SHALL permitir marcar a localização do ponto de início no mapa (busca ou toque/arraste), independente dos pontos de embarque. Coordenadas MUST NOT ser obrigatórias para salvar. O nome do ponto de início MUST continuar sendo texto.
+
+#### Scenario: Marcar início no mapa
+- **WHEN** o usuário confirma o pino do ponto de início e salva a rota
+- **THEN** a rota persiste as coordenadas do início e o formulário indica que o local está marcado
+
 ### Requirement: Capturar localização ao cadastrar o ponto
 No formulário da rota, ao adicionar ou editar um ponto, o sistema SHALL permitir marcar o local num mapa (buscar endereço e/ou tocar/arrastar o pino), sem exigir que a pessoa esteja na rua. Localização atual do aparelho MUST permanecer como opção secundária. Coordenadas numéricas manuais MUST NOT ser o caminho principal. Se a busca ou o mapa falhar, MUST NOT apagar o nome do ponto; MUST informar o erro.
 

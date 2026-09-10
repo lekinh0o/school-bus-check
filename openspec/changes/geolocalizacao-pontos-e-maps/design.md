@@ -7,13 +7,13 @@ Ver proposta. Hoje `Route.boardingPoints` é `string[]`; o aluno guarda o mesmo 
 **Goals:**
 
 - Tipo `BoardingPoint` e migration 7 sem perder nomes.
-- Cadastro de rota grava GPS opcional; execução abre Maps/Waze via `Linking`.
-- Lista operacional e aluno continuam chaveados pelo **nome**.
+- Cadastro de rota marca no mapa embarques e o ponto de início; cadastro da escola marca o local da escola.
+- Execução abre Maps/Waze no embarque, no início ou na escola quando houver coordenadas.
 
 **Non-Goals:**
 
 - Google Maps SDK / chave de API paga no cadastro (o mapa do cadastro usa OpenStreetMap).
-- Geofence, áudio, coords de `startPoint` e escola.
+- Geofence, áudio.
 - Trocar `Student.boardingPoint` para o `id` do ponto.
 
 ## Decisions

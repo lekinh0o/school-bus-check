@@ -20,6 +20,7 @@ import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { BoardingPoint, OperationType, RoutePeriod } from '@/types';
 import { BoardingPointMapPicker } from '@/components/BoardingPointMapPicker';
 import {
+  coordsFromValues,
   createBoardingPoint,
   hasCoordinates,
 } from '@/lib/boardingPoints';
@@ -75,8 +76,12 @@ export default function RouteFormScreen() {
   const [pointDraft, setPointDraft] = useState('');
   const [pendingCoords, setPendingCoords] = useState<MapCoords | undefined>();
   const [mapTarget, setMapTarget] = useState<
-    { kind: 'draft' } | { kind: 'edit'; index: number } | null
+    | { kind: 'draft' }
+    | { kind: 'edit'; index: number }
+    | { kind: 'start' }
+    | null
   >(null);
+  const [startCoords, setStartCoords] = useState<MapCoords | undefined>();
   const [responsiblePhotoUri, setResponsiblePhotoUri] = useState<
     string | undefined
   >();
@@ -89,6 +94,9 @@ export default function RouteFormScreen() {
     setResponsible(existing.responsible);
     setMonitor(existing.monitor);
     setStartPoint(existing.startPoint);
+    setStartCoords(
+      coordsFromValues(existing.startLatitude, existing.startLongitude),
+    );
     setDepartureTimeIda(existing.departureTimeIda);
     setArrivalTimeIda(existing.arrivalTimeIda);
     setDepartureTimeVolta(existing.departureTimeVolta);
@@ -187,6 +195,12 @@ export default function RouteFormScreen() {
       responsible: responsible.trim(),
       monitor: monitor.trim(),
       startPoint: startPoint.trim(),
+      ...(startCoords
+        ? {
+            startLatitude: startCoords.latitude,
+            startLongitude: startCoords.longitude,
+          }
+        : {}),
       boardingPoints,
       schoolId,
       departureTimeIda: departureTimeIda.trim(),
@@ -316,6 +330,15 @@ export default function RouteFormScreen() {
           placeholderTextColor="#94A3B8"
           className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
         />
+        <Pressable
+          onPress={() => setMapTarget({ kind: 'start' })}
+          className="mt-2 items-center rounded-2xl border border-brand bg-brand-light py-3">
+          <Text className="text-sm font-semibold text-brand-dark">
+            {startCoords
+              ? 'Local de início marcado · tocar para ajustar'
+              : 'Escolher início no mapa'}
+          </Text>
+        </Pressable>
 
         <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
           Turno da Ida
@@ -548,23 +571,31 @@ export default function RouteFormScreen() {
       <BoardingPointMapPicker
         visible={mapTarget !== null}
         title={
-          mapTarget?.kind === 'edit' && boardingPoints[mapTarget.index]
-            ? boardingPoints[mapTarget.index].name
-            : 'Local do ponto de embarque'
+          mapTarget?.kind === 'start'
+            ? 'Local do ponto de início'
+            : mapTarget?.kind === 'edit' && boardingPoints[mapTarget.index]
+              ? boardingPoints[mapTarget.index].name
+              : 'Local do ponto de embarque'
         }
         searchHint={
-          mapTarget?.kind === 'edit' && boardingPoints[mapTarget.index]
-            ? boardingPoints[mapTarget.index].name
-            : pointDraft
+          mapTarget?.kind === 'start'
+            ? startPoint
+            : mapTarget?.kind === 'edit' && boardingPoints[mapTarget.index]
+              ? boardingPoints[mapTarget.index].name
+              : pointDraft
         }
         initialCoords={
-          mapTarget?.kind === 'edit' && boardingPoints[mapTarget.index]
-            ? pointCoords(boardingPoints[mapTarget.index])
-            : pendingCoords
+          mapTarget?.kind === 'start'
+            ? startCoords
+            : mapTarget?.kind === 'edit' && boardingPoints[mapTarget.index]
+              ? pointCoords(boardingPoints[mapTarget.index])
+              : pendingCoords
         }
         onClose={() => setMapTarget(null)}
         onConfirm={(coords) => {
-          if (mapTarget?.kind === 'edit') {
+          if (mapTarget?.kind === 'start') {
+            setStartCoords(coords);
+          } else if (mapTarget?.kind === 'edit') {
             const index = mapTarget.index;
             setBoardingPoints((current) =>
               current.map((item, i) =>

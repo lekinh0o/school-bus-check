@@ -1,3 +1,4 @@
+import { coordsFromValues } from '@/lib/boardingPoints';
 import type { BoardingPoint } from '@/types';
 
 export type MapCoords = {
@@ -36,14 +37,13 @@ export async function searchPlace(query: string): Promise<MapCoords | undefined>
   return { latitude, longitude };
 }
 
+export function entityCoords(entity: {
+  latitude?: number;
+  longitude?: number;
+} | undefined): MapCoords | undefined {
+  return coordsFromValues(entity?.latitude, entity?.longitude);
+}
+
 export function pointCoords(point: BoardingPoint): MapCoords | undefined {
-  if (
-    typeof point.latitude !== 'number' ||
-    typeof point.longitude !== 'number' ||
-    !Number.isFinite(point.latitude) ||
-    !Number.isFinite(point.longitude)
-  ) {
-    return undefined;
-  }
-  return { latitude: point.latitude, longitude: point.longitude };
+  return entityCoords(point);
 }
