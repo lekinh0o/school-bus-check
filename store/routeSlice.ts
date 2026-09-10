@@ -4,6 +4,7 @@ import {
   type PayloadAction,
 } from '@reduxjs/toolkit';
 
+import { createBoardingPoint } from '@/lib/boardingPoints';
 import type { Route } from '@/types';
 
 export const routesAdapter = createEntityAdapter<Route, string>({
@@ -30,11 +31,14 @@ const routeSlice = createSlice({
       }
 
       const normalized = pointName.trim();
-      if (!normalized || route.boardingPoints.includes(normalized)) {
+      if (
+        !normalized ||
+        route.boardingPoints.some((point) => point.name.trim() === normalized)
+      ) {
         return;
       }
 
-      route.boardingPoints.push(normalized);
+      route.boardingPoints.push(createBoardingPoint(normalized));
     },
   },
 });

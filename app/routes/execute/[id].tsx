@@ -34,6 +34,8 @@ import { useAppDispatch, useAppSelector } from '@/store/store';
 import { selectVehicleById } from '@/store/vehicleSlice';
 import type { ExecutionStatus } from '@/types/execution';
 import type { Student } from '@/types';
+import { findBoardingPointByName } from '@/lib/boardingPoints';
+import { openNavigation, type NavigationApp } from '@/lib/mapNavigation';
 import { formatRouteTimeWindow } from '@/lib/routeSchedule';
 
 function pickVehicleId(students: Student[]): string | undefined {
@@ -152,6 +154,29 @@ export default function ExecuteRouteScreen() {
     });
   }, [route, schoolName, session]);
 
+  async function handleNavigate(app: NavigationApp) {
+    if (!route || !session) {
+      return;
+    }
+    const token = session.pointsList?.[session.currentPointIndex] ?? '';
+    const point = findBoardingPointByName(route.boardingPoints, token);
+    const result = await openNavigation(point?.latitude, point?.longitude, app);
+    if (result.ok) {
+      return;
+    }
+    setAlert({
+      kind: result.reason === 'missing_coords' ? 'warning' : 'error',
+      title:
+        result.reason === 'missing_coords'
+          ? 'Sem localização'
+          : 'Não foi possível abrir',
+      message:
+        result.reason === 'missing_coords'
+          ? 'Este ponto não possui coordenadas geográficas cadastradas.'
+          : 'Não foi possível abrir o aplicativo de mapas.',
+    });
+  }
+
   if (!route) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 px-6">
@@ -234,6 +259,24 @@ export default function ExecuteRouteScreen() {
               <Text className="mt-1 text-lg font-semibold text-brand-dark">
                 {pointName}
               </Text>
+              <View className="mt-3 flex-row gap-2">
+                <Pressable
+                  onPress={() => handleNavigate('google')}
+                  className="flex-1 flex-row items-center justify-center rounded-xl bg-white py-3">
+                  <Feather name="map" size={18} color="#0F6B4D" />
+                  <Text className="ml-2 text-sm font-bold text-brand-dark">
+                    Maps
+                  </Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => handleNavigate('waze')}
+                  className="flex-1 flex-row items-center justify-center rounded-xl bg-white py-3">
+                  <Feather name="navigation" size={18} color="#0F6B4D" />
+                  <Text className="ml-2 text-sm font-bold text-brand-dark">
+                    Waze
+                  </Text>
+                </Pressable>
+              </View>
             </View>
             <SnakePathTimeline stops={snakeStops} />
           </View>

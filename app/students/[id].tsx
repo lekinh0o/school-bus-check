@@ -422,9 +422,9 @@ export default function StudentFormScreen() {
           <View className="mb-2 flex-row flex-wrap gap-2">
             {[
               selectedRoute.startPoint,
-              ...selectedRoute.boardingPoints.filter(
-                (point) => point !== selectedRoute.startPoint,
-              ),
+              ...selectedRoute.boardingPoints
+                .map((point) => point.name)
+                .filter((point) => point !== selectedRoute.startPoint),
             ].map((point) => (
               <ChoiceChip
                 key={point}

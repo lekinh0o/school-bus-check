@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { type Href, Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -11,11 +12,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as Location from 'expo-location';
 
 import { addRoute, selectRouteById, updateRoute } from '@/store/routeSlice';
 import { selectAllSchools, updateSchool } from '@/store/schoolSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
-import type { OperationType, RoutePeriod } from '@/types';
+import type { BoardingPoint, OperationType, RoutePeriod } from '@/types';
+import { BoardingPointMapPicker } from '@/components/BoardingPointMapPicker';
+import {
+  createBoardingPoint,
+  hasCoordinates,
+} from '@/lib/boardingPoints';
+import { pointCoords, type MapCoords } from '@/lib/geocode';
 import { formatTimeInput, isValidHhMm } from '@/lib/inputMasks';
 import { OPERATION_TYPE_LABEL } from '@/lib/operationType';
 import { pickLocalImage } from '@/lib/pickImage';
@@ -63,8 +71,12 @@ export default function RouteFormScreen() {
   const [operationType, setOperationType] =
     useState<OperationType>('IDA_E_VOLTA');
   const [schoolId, setSchoolId] = useState('');
-  const [boardingPoints, setBoardingPoints] = useState<string[]>([]);
+  const [boardingPoints, setBoardingPoints] = useState<BoardingPoint[]>([]);
   const [pointDraft, setPointDraft] = useState('');
+  const [pendingCoords, setPendingCoords] = useState<MapCoords | undefined>();
+  const [mapTarget, setMapTarget] = useState<
+    { kind: 'draft' } | { kind: 'edit'; index: number } | null
+  >(null);
   const [responsiblePhotoUri, setResponsiblePhotoUri] = useState<
     string | undefined
   >();
@@ -84,7 +96,7 @@ export default function RouteFormScreen() {
     setPeriod(existing.period);
     setOperationType(existing.operationType ?? 'IDA_E_VOLTA');
     setSchoolId(existing.schoolId);
-    setBoardingPoints(existing.boardingPoints);
+    setBoardingPoints(existing.boardingPoints ?? []);
     setResponsiblePhotoUri(existing.responsiblePhotoUri);
   }, [existing]);
 
@@ -102,11 +114,43 @@ export default function RouteFormScreen() {
 
   function handleAddPoint() {
     const normalized = pointDraft.trim();
-    if (!normalized || boardingPoints.includes(normalized)) {
+    if (
+      !normalized ||
+      boardingPoints.some((point) => point.name.trim() === normalized)
+    ) {
       return;
     }
-    setBoardingPoints((current) => [...current, normalized]);
+    setBoardingPoints((current) => [
+      ...current,
+      createBoardingPoint(normalized, pendingCoords),
+    ]);
     setPointDraft('');
+    setPendingCoords(undefined);
+  }
+
+  async function captureCoords(
+    apply: (coords: { latitude: number; longitude: number }) => void,
+  ) {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== 'granted') {
+      Alert.alert(
+        'Localização',
+        'Permissão recusada. O ponto permanece sem GPS.',
+      );
+      return;
+    }
+    try {
+      const position = await Location.getCurrentPositionAsync({});
+      apply({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+    } catch {
+      Alert.alert(
+        'Localização',
+        'Não foi possível ler o GPS. O ponto permanece sem coordenadas novas.',
+      );
+    }
   }
 
   function handleRemovePoint(index: number) {
@@ -407,6 +451,10 @@ export default function RouteFormScreen() {
         <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
           Pontos de embarque
         </Text>
+        <Text className="mb-2 text-xs text-slate-500">
+          Digite o nome, marque o local no mapa e toque em +. Não precisa ir até
+          a rua.
+        </Text>
         <View className="flex-row items-center gap-2">
           <TextInput
             value={pointDraft}
@@ -421,9 +469,29 @@ export default function RouteFormScreen() {
             <Text className="text-2xl font-bold text-white">+</Text>
           </Pressable>
         </View>
+        <Pressable
+          onPress={() => setMapTarget({ kind: 'draft' })}
+          className="mt-2 items-center rounded-2xl border border-brand bg-brand-light py-3">
+          <Text className="text-sm font-semibold text-brand-dark">
+            {pendingCoords
+              ? 'Local marcado no mapa · tocar para ajustar'
+              : 'Escolher no mapa'}
+          </Text>
+        </Pressable>
+        <Pressable
+          onPress={() =>
+            captureCoords((coords) => {
+              setPendingCoords(coords);
+            })
+          }
+          className="mt-2 items-center py-2">
+          <Text className="text-xs font-semibold text-slate-500">
+            Estou neste local agora (GPS do aparelho)
+          </Text>
+        </Pressable>
         {boardingPoints.map((point, index) => (
           <View
-            key={`${point}-${index}`}
+            key={point.id}
             className="mt-2 flex-row items-center rounded-2xl border border-slate-200 bg-white px-3 py-2">
             <View className="mr-1">
               <Pressable
@@ -447,7 +515,18 @@ export default function RouteFormScreen() {
                 />
               </Pressable>
             </View>
-            <Text className="flex-1 text-base text-slate-900">{point}</Text>
+            <View className="flex-1">
+              <Text className="text-base text-slate-900">{point.name}</Text>
+              <Text className="text-xs text-slate-500">
+                {hasCoordinates(point) ? 'Local no mapa' : 'Sem local no mapa'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setMapTarget({ kind: 'edit', index })}
+              hitSlop={8}
+              className="h-10 w-10 items-center justify-center">
+              <Feather name="map-pin" size={20} color="#0F6B4D" />
+            </Pressable>
             <Pressable
               onPress={() => handleRemovePoint(index)}
               hitSlop={8}
@@ -466,6 +545,38 @@ export default function RouteFormScreen() {
           <Text className="text-lg font-bold text-white">Salvar</Text>
         </Pressable>
       </ScrollView>
+      <BoardingPointMapPicker
+        visible={mapTarget !== null}
+        title={
+          mapTarget?.kind === 'edit' && boardingPoints[mapTarget.index]
+            ? boardingPoints[mapTarget.index].name
+            : 'Local do ponto de embarque'
+        }
+        searchHint={
+          mapTarget?.kind === 'edit' && boardingPoints[mapTarget.index]
+            ? boardingPoints[mapTarget.index].name
+            : pointDraft
+        }
+        initialCoords={
+          mapTarget?.kind === 'edit' && boardingPoints[mapTarget.index]
+            ? pointCoords(boardingPoints[mapTarget.index])
+            : pendingCoords
+        }
+        onClose={() => setMapTarget(null)}
+        onConfirm={(coords) => {
+          if (mapTarget?.kind === 'edit') {
+            const index = mapTarget.index;
+            setBoardingPoints((current) =>
+              current.map((item, i) =>
+                i === index ? { ...item, ...coords } : item,
+              ),
+            );
+          } else {
+            setPendingCoords(coords);
+          }
+          setMapTarget(null);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
