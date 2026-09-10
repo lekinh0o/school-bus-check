@@ -7,6 +7,7 @@ import {
   buildRouteTimelineStops,
   RouteTimeline,
 } from '@/components/RouteTimeline';
+import { OPERATION_TYPE_LABEL, resolveOperationType } from '@/lib/operationType';
 import { formatRouteTimeWindow } from '@/lib/routeSchedule';
 import { removeRoute, selectAllRoutes } from '@/store/routeSlice';
 import { updateSchool } from '@/store/schoolSlice';
@@ -91,7 +92,8 @@ export default function RoutesListScreen() {
                       {route.title}
                     </Text>
                     <Text className="mt-1 text-sm font-semibold text-brand">
-                      {PERIOD_LABEL[route.period]}
+                      {PERIOD_LABEL[route.period]} ·{' '}
+                      {OPERATION_TYPE_LABEL[resolveOperationType(route)]}
                     </Text>
                     <Text className="mt-1 text-sm text-slate-500">
                       {route.startPoint}

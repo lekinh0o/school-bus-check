@@ -8,3 +8,12 @@ export function localDateKey(iso?: string): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+export function formatLocalDate(iso?: string): string {
+  const key = localDateKey(iso);
+  if (!key) {
+    return '';
+  }
+  const [year, month, day] = key.split('-');
+  return `${day}/${month}/${year}`;
+}

@@ -26,6 +26,8 @@ export type ExecutionMetrics = {
 export type CycleJustificationKind =
   | 'forgot_morning'
   | 'afternoon_only'
+  | 'return_done_offline'
+  | 'period_cancelled'
   | 'free_text';
 
 export type CycleJustification = {

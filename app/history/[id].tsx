@@ -135,7 +135,11 @@ export default function HistoryDetailScreen() {
               ? 'Esqueci de iniciar de manhã'
               : trip.cycleJustification.kind === 'afternoon_only'
                 ? 'Período exclusivo à tarde'
-                : trip.cycleJustification.note ?? 'Texto livre'}
+                : trip.cycleJustification.kind === 'return_done_offline'
+                  ? 'Volta realizada sem o app'
+                  : trip.cycleJustification.kind === 'period_cancelled'
+                    ? 'Período cancelado/Feriado'
+                    : trip.cycleJustification.note ?? 'Texto livre'}
           </Text>
         </View>
       ) : null}
