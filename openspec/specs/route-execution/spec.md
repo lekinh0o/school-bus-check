@@ -130,7 +130,7 @@ A tela de execução SHALL ter duas abas: Execução (passo do ponto atual) e Re
 - **THEN** volta ao mesmo ponto atual com os mesmos status
 
 ### Requirement: Cabeçalho fixo da tab Execução
-Na tab Execução, o sistema SHALL manter no topo (fixo ao rolar a lista) os contadores de presentes, ausentes e pontos pulados, e uma timeline de ícones do percurso. Pontos ainda não concluídos MUST aparecer como pendentes; pontos já passados MUST aparecer como concluídos. Na ida, o primeiro ícone é o ponto inicial da van e o último é a escola. Na volta, o primeiro ícone é a escola e o último é o ponto inicial da van.
+Na tab Execução, o sistema SHALL manter no topo (fixo ao rolar a lista) os contadores de presentes, ausentes e pontos pulados, um card em destaque da parada atual (nome do ponto e se é embarque ou desembarque) e uma timeline de ícones do percurso em formato de “S” (linhas alternadas esquerda–direita e direita–esquerda, com conectores). Ícones da timeline e áreas de toque relacionadas MUST ter no mínimo 48px (`h-12 w-12`). Pontos ainda não concluídos MUST aparecer como pendentes; pontos já passados MUST aparecer como concluídos; o ponto atual MUST ficar visualmente distinto. Na ida, o primeiro ícone é o ponto inicial da van e o último é a escola. Na volta, o primeiro ícone é a escola e o último é o ponto inicial da van.
 
 #### Scenario: Contadores visíveis
 - **WHEN** a sessão está em andamento
@@ -144,27 +144,43 @@ Na tab Execução, o sistema SHALL manter no topo (fixo ao rolar a lista) os con
 - **WHEN** o sentido é VOLTA
 - **THEN** a timeline começa na escola, mostra os pontos invertidos como pendente ou concluído, e termina no ponto inicial
 
+#### Scenario: Parada atual em destaque
+- **WHEN** a sessão está em um ponto que não é o último
+- **THEN** o card da parada atual mostra o nome desse ponto de forma destacada, sem depender de scroll horizontal para identificá-lo
+
 ### Requirement: Passo a passo com foto, status e contato
-Na tab Execução o sistema SHALL mostrar a lista de alunos do ponto atual, cada um com foto (`photoUri`) em avatar circular ou placeholder, botões de presente e ausente com área de toque ampla, e um controle para contatar o responsável. Os rótulos MUST ser embarque ou desembarque conforme o ponto: na ida, desembarque só na escola; na volta, embarque na escola e desembarque nos pontos da criança.
+Na tab Execução o sistema SHALL mostrar a lista de alunos do ponto atual, cada um com foto (`photoUri`) em avatar circular ou placeholder, botões de presente e ausente com área de toque ampla, e um controle para contatar o responsável. Os rótulos MUST ser embarque ou desembarque conforme o ponto: na ida, desembarque só na escola; na volta, embarque na escola e desembarque nos pontos da criança. Segurar a foto MUST abrir a foto ampliada com o nome do aluno. Contato com um único telefone MUST abrir o WhatsApp; com dois ou mais MUST abrir um seletor e, após a escolha, permitir WhatsApp ou ligação.
 
 #### Scenario: Foto na lista
 - **WHEN** o aluno tem foto
 - **THEN** a lista mostra essa foto no avatar; se não houver foto, mostra placeholder
 
+#### Scenario: Ampliar foto
+- **WHEN** o usuário faz long press na foto de um aluno que tem `photoUri`
+- **THEN** o sistema mostra a foto ampliada e o nome completo; fechar o modal volta à lista
+
 #### Scenario: Contato
-- **WHEN** o usuário aciona o contato do responsável
-- **THEN** o sistema dispara o canal de telefone ou WhatsApp com um dos telefones cadastrados do aluno
+- **WHEN** o usuário aciona o contato do responsável com um único telefone cadastrado
+- **THEN** o sistema abre o WhatsApp daquele número
+
+#### Scenario: Vários telefones
+- **WHEN** o aluno tem mais de um telefone e o usuário aciona contato
+- **THEN** o sistema lista os números para escolha e só então abre WhatsApp ou ligação do número escolhido
 
 #### Scenario: Rótulos na escola na ida
 - **WHEN** o ponto atual é a escola na ida
 - **THEN** os botões de ação usam a nomenclatura de desembarque para quem está na van
 
 ### Requirement: Anterior, concluir, próximo e auto-avanço
-O sistema SHALL oferecer Anterior (volta um ponto se não for o primeiro), Concluir (avança só se todos os alunos exigidos do ponto já tiverem status) e Próximo (pular o ponto só se nenhum aluno da lista atual tiver sido marcado neste ponto). Ao marcar o último aluno ainda pendente da lista do ponto, o sistema MUST concluir o ponto sozinho e avançar, se houver próximo ponto. Encerrar a rota no último ponto continua bloqueado se houver aluno presente na van.
+O sistema SHALL oferecer Anterior (volta um ponto se não for o primeiro), Concluir (avança só se todos os alunos exigidos do ponto já tiverem status) e Próximo (pular o ponto só se nenhum aluno da lista atual tiver sido marcado neste ponto). Ao marcar o último aluno ainda pendente da lista do ponto, o sistema MUST concluir o ponto sozinho e avançar, se houver próximo ponto. Encerrar a rota no último ponto continua bloqueado se houver aluno presente na van. Tocar Concluir sem poder avançar MUST mostrar um aviso ERRO padronizado, sem avançar o ponto.
 
 #### Scenario: Concluir bloqueado
 - **WHEN** ainda há aluno do ponto sem status
-- **THEN** Concluir permanece desabilitado
+- **THEN** Concluir não avança o ponto
+
+#### Scenario: Aviso ao concluir inválido
+- **WHEN** o usuário toca Concluir com aluno do ponto ainda pendente
+- **THEN** o sistema mostra um alerta do tipo ERRO e permanece no mesmo ponto
 
 #### Scenario: Próximo só sem marcações
 - **WHEN** pelo menos um aluno da lista do ponto já foi marcado
@@ -261,7 +277,7 @@ Ao tocar Iniciar Trajeto no sentido VOLTA em rota de **Ida e Volta obrigatórias
 - **THEN** o sistema não exige justificativa de ausência de IDA no dia
 
 ### Requirement: Alerta de falta na ida durante a VOLTA
-Na execução em andamento no sentido VOLTA, o sistema SHALL destacar de forma visível (junto da foto e do nome) cada aluno cujo status na IDA encerrada daquela rota no mesmo dia foi `ABSENT`. O destaque MUST ser só informativo: presente e ausente MUST permanecer acionáveis. Se não houver IDA do dia ou o aluno não esteve ausente nela, MUST NOT mostrar o alerta de falta na ida.
+Na execução em andamento no sentido VOLTA, o sistema SHALL destacar de forma visível (junto da foto e do nome) cada aluno cujo status na IDA encerrada daquela rota no mesmo dia foi `ABSENT`. O destaque MUST usar o tipo visual ALERTA. O destaque MUST ser só informativo: presente e ausente MUST permanecer acionáveis. Se não houver IDA do dia ou o aluno não esteve ausente nela, MUST NOT mostrar o alerta de falta na ida.
 
 #### Scenario: Badge na lista da execução
 - **WHEN** a sessão é VOLTA e o aluno esteve ausente na IDA do dia
@@ -289,3 +305,92 @@ Na tab Execução, o sistema SHALL oferecer um atalho visível de navegação ju
 #### Scenario: App indisponível
 - **WHEN** o deep link do app escolhido falha
 - **THEN** o usuário vê um aviso e a execução não é interrompida
+
+### Requirement: Card em destaque da parada atual
+Na tab Execução, o sistema SHALL destacar a parada atual acima da lista de alunos, com o nome do ponto, a quantidade de alunos exigidos naquela parada, a distância quando houver, o estado de aproximação e uma ação de navegação. O atalho MUST reutilizar a abertura já existente de Google Maps e Waze nas coordenadas da parada (embarque, início ou escola). A execução MUST continuar se a localização do aparelho ou do ponto faltar.
+
+#### Scenario: Hero com alunos
+- **WHEN** a sessão está em andamento na tab Execução
+- **THEN** o card mostra o nome da parada atual e quantos alunos exigem ação naquele ponto
+
+#### Scenario: Navegar reutiliza Maps e Waze
+- **WHEN** o usuário escolhe Navegar e a parada tem coordenadas
+- **THEN** o sistema oferece Google Maps e Waze pelo mesmo mecanismo já usado na execução
+
+#### Scenario: Ponto sem coordenadas
+- **WHEN** a parada atual não tem latitude/longitude
+- **THEN** o card informa que o local do ponto não está cadastrado e a marcação de presença permanece disponível
+
+### Requirement: Distância em tempo real na execução
+Enquanto a sessão estiver em andamento e a tab Execução visível, o sistema SHALL acompanhar a localização em primeiro plano (após permissão) e calcular a distância até as coordenadas já persistidas da parada atual. Coordenadas inválidas ou ausentes MUST produzir distância indefinida, sem quebrar a sessão. Recusa de permissão ou GPS indisponível MUST mostrar estado amigável (indisponível ou carregando) e MUST NOT bloquear presença, pulo, conclusão ou encerramento. O acompanhamento MUST parar ao sair da tela de execução. A posição atual MUST NOT ser persistida.
+
+#### Scenario: Distância disponível
+- **WHEN** há permissão, posição do aparelho e coordenadas da parada
+- **THEN** o card mostra a distância aproximada em metros ou quilômetros
+
+#### Scenario: Sem permissão
+- **WHEN** o usuário recusa a localização
+- **THEN** o card indica localização indisponível e a execução segue utilizável
+
+#### Scenario: Encerrar acompanhamento
+- **WHEN** o usuário sai da tela de execução
+- **THEN** o watcher de localização é removido
+
+### Requirement: Chegada no raio de 50 metros
+Quando a distância até a parada atual passar de maior que 50 m para menor ou igual a 50 m, o sistema SHALL indicar chegada com texto e destaque visual no card e tentar um som curto. Enquanto a distância permanecer ≤ 50 m na mesma parada, MUST NOT repetir o som. Ao mudar o índice da parada, o estado de geofence MUST ser reiniciado. Entrar no raio MUST NOT marcar alunos nem concluir o ponto. Se o som falhar, o destaque visual MUST permanecer.
+
+#### Scenario: Entra no raio
+- **WHEN** a distância vai de acima de 50 m para 50 m ou menos na mesma parada
+- **THEN** o card mostra chegada e o som dispara no máximo uma vez nessa transição
+
+#### Scenario: Permanece no raio
+- **WHEN** atualizações seguintes ainda estão a 50 m ou menos da mesma parada
+- **THEN** o sistema não dispara o som novamente
+
+#### Scenario: Nova parada
+- **WHEN** a sessão avança para outra parada
+- **THEN** o geofence da parada anterior não impede um novo alerta na nova parada
+
+### Requirement: Lista touch-first e barra inferior
+Na tab Execução, cada aluno da parada atual MUST aparecer com foto maior que o avatar compacto anterior (ou placeholder), nome, ponto, status e contato do responsável pelo fluxo já existente. Presente, ausente e desembarque MUST permanecer as mesmas ações de sessão, com área de toque ampla, texto e ícone (não só cor). Anterior, Concluir/Encerrar e Próximo MUST permanecer com as mesmas travas. Se concluir estiver bloqueado por alunos ainda exigidos, o sistema MUST informar a quantidade. A aba Resumo MUST continuar com mapa de assentos e correção de status.
+
+#### Scenario: Foto grande
+- **WHEN** o aluno tem foto
+- **THEN** a lista da execução mostra essa foto em tamanho maior que 64 px de lado
+
+#### Scenario: Concluir bloqueado com motivo
+- **WHEN** ainda há alunos exigidos sem ação na parada e o usuário tenta concluir
+- **THEN** o sistema não avança e informa quantos ainda precisam ser avaliados
+
+#### Scenario: Resumo intacto
+- **WHEN** o usuário abre a aba Resumo durante a sessão
+- **THEN** o mapa de assentos e a lista geral continuam disponíveis sem resetar o ponto atual
+
+### Requirement: Timeline em S na execução
+A timeline de percurso da execução SHALL dispor os pontos em linhas de “S”, com conectores visíveis na ordem da viagem. Muitos pontos MUST permanecer visíveis sem uma única faixa horizontal que corte o percurso fora da tela.
+
+#### Scenario: Muitas paradas
+- **WHEN** a rota tem mais paradas do que cabem numa linha
+- **THEN** a timeline continua na linha de baixo no sentido inverso, com conector entre as linhas
+
+### Requirement: Apresentação do Início alinhada ao Design System
+A tela inicial SHALL seguir a composição do mockup de Início: cabeçalho com título Início; data por extenso e turno na mesma linha; controles de sino e de alerta no canto (sino MAY mostrar indicador visual; MUST NOT inventar store de notificações). Se houver ciclo Ida/Volta incompleto, MUST mostrar banner de atenção compacto (alerta + texto + chevron) com ação de justificar no próprio banner, sem botão primário gigante separado, e sem mudar as regras de justificativa. A seção de rotas MUST usar título de seção; cada rota MUST ser um card branco com ícone em poço, nome, escola, status operacional, dois CTAs lado a lado (Iniciar Ida / Iniciar Volta, primária verde da família Cadastros/Execução, não azul/amarelo do print) e janelas de horário abaixo de cada CTA. Timeline de paradas MUST NOT ocupar o card do Início. Histórico recente MUST ser um card (ou lista compacta na mesma família) com linhas de data/hora, rota e sentido, presentes/ausentes/pulados e duração, e atalho para o Histórico existente. Ações de sentido MUST continuar abrindo o fluxo existente de iniciar trajeto.
+
+#### Scenario: Card com Ida e Volta independentes
+- **WHEN** o usuário está no Início e a rota permite os dois sentidos
+- **THEN** o card mostra as duas janelas abaixo dos CTAs e oferece ação separada de Ida e de Volta, ambas levando ao fluxo já existente de iniciar trajeto
+
+#### Scenario: Pendência visível
+- **WHEN** existe ciclo incompleto que o app já sabe justificar
+- **THEN** o Início destaca essa pendência num banner de atenção e oferece a ação de justificar, sem iniciar a sessão sozinho
+
+### Requirement: Cockpit visual sem mudar a operação
+A tab Execução e a tab Resumo SHALL seguir a composição dos mockups sobre o cockpit já entregue: header claro com voltar, nome da rota e turno/janela; abas Execução/Resumo; na Execução, hero claro/mint da parada atual (rótulo, nome, ponto, índice N de M, ação de próxima parada se já existir na #19), timeline de paradas, métricas presentes/ausentes/pulados, anterior/concluir/próximo, card do aluno (foto, contato, Presente/Ausente/Pular conforme regras atuais). Na Resumo: card da rota e status, métricas, mapa de assentos, lista de alunos, ações finais já existentes. GPS, geofence, Maps/Waze, fotos, travas e marcação MUST permanecer acionáveis. Estados de distância MUST continuar distinguíveis por texto, não só por cor. MUST NOT reimplementar a #19; alteração permitida é apresentação (incluindo hero claro em vez de painel escuro, se isso alinhar o mockup).
+
+#### Scenario: Hero permanece o foco
+- **WHEN** a sessão está em andamento na tab Execução
+- **THEN** o card da parada atual continua no topo com nome, alunos, distância ou estado de GPS e navegação, só com apresentação alinhada ao mockup e ao Design System
+
+#### Scenario: Travas iguais
+- **WHEN** ainda há alunos exigidos sem ação
+- **THEN** concluir permanece bloqueado e o motivo continua compreensível
