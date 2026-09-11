@@ -58,7 +58,7 @@ Após escolher a escola, o sistema SHALL oferecer apenas rotas vinculadas àquel
 - **THEN** o sistema informa que não há rotas e MUST NOT persistir o aluno
 
 ### Requirement: Rua de embarque a partir da rota
-O sistema SHALL tratar o ponto de embarque como texto livre, com rótulo “Ponto de embarque”. Após escolher a rota, MUST mostrar os `boardingPoints` já existentes como sugestões tocáveis. O usuário MUST conseguir digitar um ponto que ainda não está na lista. Ponto em branco MUST NOT ser aceito. Se o texto salvo ainda não existir na rota, o sistema MUST acrescentá-lo ao final de `boardingPoints` e persistir a rota.
+O sistema SHALL tratar o ponto de embarque do aluno como texto livre (o **nome** do ponto), com rótulo “Ponto de embarque”. Após escolher a rota, MUST mostrar os pontos já existentes na rota como sugestões tocáveis, usando o nome de cada ponto. O usuário MUST conseguir digitar um ponto que ainda não está na lista. Ponto em branco MUST NOT ser aceito. Se o texto salvo ainda não existir na rota (comparando pelo nome), o sistema MUST acrescentar um ponto estruturado ao final de `boardingPoints` (sem coordenadas) e persistir a rota.
 
 #### Scenario: Sugestão da rota
 - **WHEN** o usuário escolhe uma rota que já tem pontos e toca uma sugestão
@@ -66,7 +66,7 @@ O sistema SHALL tratar o ponto de embarque como texto livre, com rótulo “Pont
 
 #### Scenario: Digitar rua nova
 - **WHEN** o usuário digita um ponto que não está em `boardingPoints` e salva o aluno
-- **THEN** o aluno fica com esse `boardingPoint` e a rota passa a incluir esse ponto no fim da lista
+- **THEN** o aluno fica com esse `boardingPoint` e a rota passa a incluir esse ponto no fim da lista, sem latitude/longitude
 
 #### Scenario: Rua em branco
 - **WHEN** o campo de ponto de embarque está vazio

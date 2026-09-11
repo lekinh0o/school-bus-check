@@ -66,7 +66,7 @@ O sistema SHALL exigir confirmação explícita antes de excluir uma rota. Após
 - **THEN** a rota deixa de aparecer na listagem e deixa de contar como rota vinculada na escola
 
 ### Requirement: Lista dinâmica de ruas no formulário
-O sistema SHALL permitir adicionar pontos de embarque pelo nome, removê-los individualmente e reordenar (subir/descer) antes de salvar. Um ponto em branco MUST NOT ser adicionado. A ordem da lista MUST ser a ordem persistida em `boardingPoints`. Os rótulos da interface MUST usar “Ponto de embarque”, não “rua”.
+O sistema SHALL permitir adicionar pontos de embarque pelo nome, removê-los individualmente e reordenar (subir/descer) antes de salvar. Um ponto em branco MUST NOT ser adicionado. A ordem da lista MUST ser a ordem persistida em `boardingPoints`. Os rótulos da interface MUST usar “Ponto de embarque”, não “rua”. Cada item persistido MUST ser um ponto estruturado (identificador e nome; coordenadas opcionais). Dois pontos MUST NOT ter o mesmo nome na mesma rota.
 
 #### Scenario: Adicionar rua
 - **WHEN** o usuário informa um nome de ponto não vazio e confirma a adição
@@ -87,6 +87,39 @@ O sistema SHALL permitir adicionar pontos de embarque pelo nome, removê-los ind
 #### Scenario: Descer rua
 - **WHEN** o usuário desce um ponto que não é o último
 - **THEN** ele troca de posição com o seguinte na lista
+
+### Requirement: Coordenadas opcionais no ponto de embarque
+O sistema SHALL persistir cada ponto de embarque da rota com identificador estável, nome e, se informadas, latitude e longitude. Coordenadas MUST NOT ser obrigatórias para salvar a rota. Rotas já persistidas só com nomes MUST continuar utilizáveis após a atualização, sem GPS. Listagens e timelines MUST exibir o nome do ponto, não as coordenadas.
+
+#### Scenario: Nova rota sem GPS nos pontos
+- **WHEN** o usuário adiciona pontos só com nome e salva
+- **THEN** a rota persiste os pontos com nome e sem exigir latitude/longitude
+
+#### Scenario: Ponto antigo vira objeto
+- **WHEN** o app reabre dados em que o ponto era só um texto
+- **THEN** o ponto aparece com o mesmo nome e a rota permanece editável
+
+### Requirement: Local do ponto de início no mapa
+O formulário da rota SHALL permitir marcar a localização do ponto de início no mapa (busca ou toque/arraste), independente dos pontos de embarque. Coordenadas MUST NOT ser obrigatórias para salvar. O nome do ponto de início MUST continuar sendo texto.
+
+#### Scenario: Marcar início no mapa
+- **WHEN** o usuário confirma o pino do ponto de início e salva a rota
+- **THEN** a rota persiste as coordenadas do início e o formulário indica que o local está marcado
+
+### Requirement: Capturar localização ao cadastrar o ponto
+No formulário da rota, ao adicionar ou editar um ponto, o sistema SHALL permitir marcar o local num mapa (buscar endereço e/ou tocar/arrastar o pino), sem exigir que a pessoa esteja na rua. Localização atual do aparelho MUST permanecer como opção secundária. Coordenadas numéricas manuais MUST NOT ser o caminho principal. Se a busca ou o mapa falhar, MUST NOT apagar o nome do ponto; MUST informar o erro.
+
+#### Scenario: Marcar no mapa
+- **WHEN** o usuário busca um endereço ou toca o mapa e confirma
+- **THEN** aquele ponto fica com as coordenadas do pino
+
+#### Scenario: Estou neste local
+- **WHEN** o usuário escolhe gravar a posição atual do aparelho e o GPS responde
+- **THEN** aquele ponto fica com as coordenadas recebidas
+
+#### Scenario: Permissão recusada no GPS atual
+- **WHEN** o usuário recusa a permissão de localização ao usar “estou neste local”
+- **THEN** o ponto permanece na lista sem coordenadas novas e o usuário vê um aviso compreensível
 
 ### Requirement: Título e sentido da rota
 O sistema SHALL exigir um título da rota na criação e na edição. O sistema MUST NOT exigir nem persistir sentido `IDA` ou `VOLTA` no cadastro da rota.
