@@ -19,13 +19,16 @@ import { selectAllSchools, updateSchool } from '@/store/schoolSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { BoardingPoint, OperationType, RoutePeriod } from '@/types';
 import { BoardingPointMapPicker } from '@/components/BoardingPointMapPicker';
+import { FieldChecklist } from '@/components/FieldChecklist';
+import { TimePickerField } from '@/components/TimePickerField';
+import { useLeaveConfirmation } from '@/hooks/useLeaveConfirmation';
 import {
   coordsFromValues,
   createBoardingPoint,
   hasCoordinates,
 } from '@/lib/boardingPoints';
 import { pointCoords, type MapCoords } from '@/lib/geocode';
-import { formatTimeInput, isValidHhMm } from '@/lib/inputMasks';
+import { isValidHhMm } from '@/lib/inputMasks';
 import { OPERATION_TYPE_LABEL } from '@/lib/operationType';
 import { pickLocalImage } from '@/lib/pickImage';
 
@@ -119,6 +122,46 @@ export default function RouteFormScreen() {
     isValidHhMm(arrivalTimeVolta) &&
     period !== null &&
     schoolId.length > 0;
+
+  const checklist = [
+    { label: 'Título', done: title.trim().length > 0 },
+    { label: 'Responsável', done: responsible.trim().length > 0 },
+    { label: 'Monitor', done: monitor.trim().length > 0 },
+    { label: 'Ponto de início', done: startPoint.trim().length > 0 },
+    { label: 'Horário de início da Ida (00:00–23:59)', done: isValidHhMm(departureTimeIda) },
+    { label: 'Horário de término da Ida', done: isValidHhMm(arrivalTimeIda) },
+    { label: 'Horário de início da Volta', done: isValidHhMm(departureTimeVolta) },
+    { label: 'Horário de término da Volta', done: isValidHhMm(arrivalTimeVolta) },
+    { label: 'Período', done: period !== null },
+    { label: 'Escola', done: schoolId.length > 0 },
+  ];
+
+  const isDirty = isCreate
+    ? title.length > 0 ||
+      responsible.length > 0 ||
+      monitor.length > 0 ||
+      startPoint.length > 0 ||
+      departureTimeIda.length > 0 ||
+      boardingPoints.length > 0
+    : Boolean(
+        existing &&
+          (title !== existing.title ||
+            responsible !== existing.responsible ||
+            monitor !== existing.monitor ||
+            startPoint !== existing.startPoint ||
+            departureTimeIda !== existing.departureTimeIda ||
+            arrivalTimeIda !== existing.arrivalTimeIda ||
+            departureTimeVolta !== existing.departureTimeVolta ||
+            arrivalTimeVolta !== existing.arrivalTimeVolta ||
+            period !== existing.period ||
+            schoolId !== existing.schoolId),
+      );
+
+  const { allowNextLeave } = useLeaveConfirmation({
+    shouldConfirm: isDirty,
+    title: 'Sair do cadastro?',
+    message: 'As alterações não salvas serão perdidas. Deseja sair mesmo assim?',
+  });
 
   function handleAddPoint() {
     const normalized = pointDraft.trim();
@@ -255,6 +298,7 @@ export default function RouteFormScreen() {
       }
     }
 
+    allowNextLeave();
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -344,48 +388,38 @@ export default function RouteFormScreen() {
           Turno da Ida
         </Text>
         <Text className="mb-2 text-xs text-slate-500">
-          Horário de início e término na escola
+          Horário de início e término na escola (00:00 às 23:59)
         </Text>
-        <TextInput
+        <TimePickerField
+          label="Início da Ida"
           value={departureTimeIda}
-          onChangeText={(value) => setDepartureTimeIda(formatTimeInput(value))}
-          keyboardType="number-pad"
-          placeholder="Início 06:00"
-          placeholderTextColor="#94A3B8"
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
+          onChange={setDepartureTimeIda}
+          placeholder="Ex: 06:00"
         />
-        <TextInput
+        <TimePickerField
+          label="Término na escola"
           value={arrivalTimeIda}
-          onChangeText={(value) => setArrivalTimeIda(formatTimeInput(value))}
-          keyboardType="number-pad"
-          placeholder="Término na escola 07:10"
-          placeholderTextColor="#94A3B8"
-          className="mt-2 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
+          onChange={setArrivalTimeIda}
+          placeholder="Ex: 07:10"
         />
 
         <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
           Turno da Volta
         </Text>
         <Text className="mb-2 text-xs text-slate-500">
-          Horário de início na escola e término
+          Horário de início na escola e término (00:00 às 23:59)
         </Text>
-        <TextInput
+        <TimePickerField
+          label="Início da Volta"
           value={departureTimeVolta}
-          onChangeText={(value) =>
-            setDepartureTimeVolta(formatTimeInput(value))
-          }
-          keyboardType="number-pad"
-          placeholder="Início na escola 11:00"
-          placeholderTextColor="#94A3B8"
-          className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
+          onChange={setDepartureTimeVolta}
+          placeholder="Ex: 11:00"
         />
-        <TextInput
+        <TimePickerField
+          label="Término da Volta"
           value={arrivalTimeVolta}
-          onChangeText={(value) => setArrivalTimeVolta(formatTimeInput(value))}
-          keyboardType="number-pad"
-          placeholder="Término 12:10"
-          placeholderTextColor="#94A3B8"
-          className="mt-2 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
+          onChange={setArrivalTimeVolta}
+          placeholder="Ex: 12:10"
         />
 
         <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
@@ -559,6 +593,7 @@ export default function RouteFormScreen() {
           </View>
         ))}
 
+        <FieldChecklist items={checklist} />
         <Pressable
           disabled={!canSubmit}
           onPress={handleSubmit}

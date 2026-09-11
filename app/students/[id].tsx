@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 
 import { BusSeatMap } from '@/components/BusSeatMap';
+import { FieldChecklist } from '@/components/FieldChecklist';
+import { useLeaveConfirmation } from '@/hooks/useLeaveConfirmation';
 import { selectAllRoutes, selectRouteById, addBoardingPointToRoute } from '@/store/routeSlice';
 import { selectAllSchools, updateSchool } from '@/store/schoolSlice';
 import {
@@ -146,18 +148,37 @@ export default function StudentFormScreen() {
     vehicleId.length > 0 &&
     seatNumber !== null;
 
-  const missingFields: string[] = [];
-  if (name.trim().length === 0) missingFields.push('nome');
-  if (age === null) missingFields.push('idade');
-  if (responsible.trim().length === 0) missingFields.push('responsável');
-  if (!isValidPhoneBr(phone1)) missingFields.push('telefone 1');
-  if (!isValidPhoneBr(phone2)) missingFields.push('telefone 2');
-  if (grade.trim().length === 0) missingFields.push('série');
-  if (!schoolId) missingFields.push('escola');
-  if (!routeId) missingFields.push('rota');
-  if (!pointName) missingFields.push('ponto de embarque');
-  if (!vehicleId) missingFields.push('veículo');
-  if (seatNumber === null) missingFields.push('assento');
+  const checklist = [
+    { label: 'Nome', done: name.trim().length > 0 },
+    { label: 'Idade', done: age !== null },
+    { label: 'Responsável', done: responsible.trim().length > 0 },
+    { label: 'Telefone 1 com DDD', done: isValidPhoneBr(phone1) },
+    { label: 'Telefone 2 com DDD', done: isValidPhoneBr(phone2) },
+    { label: 'Série', done: grade.trim().length > 0 },
+    { label: 'Escola', done: schoolId.length > 0 },
+    { label: 'Rota', done: routeId.length > 0 },
+    { label: 'Ponto de embarque', done: pointName.length > 0 },
+    { label: 'Veículo', done: vehicleId.length > 0 },
+    { label: 'Assento', done: seatNumber !== null },
+  ];
+
+  const isDirty = isCreate
+    ? name.length > 0 || responsible.length > 0 || phone1.length > 0
+    : Boolean(
+        existing &&
+          (name !== existing.name ||
+            ageInput !== String(existing.age) ||
+            responsible !== existing.responsible ||
+            schoolId !== existing.schoolId ||
+            routeId !== existing.routeId ||
+            seatNumber !== existing.seatNumber),
+      );
+
+  const { allowNextLeave } = useLeaveConfirmation({
+    shouldConfirm: isDirty,
+    title: 'Sair do cadastro?',
+    message: 'As alterações não salvas serão perdidas. Deseja sair mesmo assim?',
+  });
 
   function handleSelectSchool(nextId: string) {
     setSchoolId(nextId);
@@ -273,7 +294,7 @@ export default function StudentFormScreen() {
     }
 
     void persistor.flush();
-
+    allowNextLeave();
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -471,6 +492,7 @@ export default function StudentFormScreen() {
           </View>
         ) : null}
 
+        <FieldChecklist items={checklist} />
         <Pressable
           disabled={!canSubmit}
           onPress={handleSubmit}
@@ -479,12 +501,6 @@ export default function StudentFormScreen() {
           }`}>
           <Text className="text-base font-bold text-white">Salvar</Text>
         </Pressable>
-        {!canSubmit ? (
-          <Text className="mt-3 text-center text-sm text-slate-500">
-            Falta preencher: {missingFields.join(', ')}. Telefones precisam de
-            DDD e pelo menos 10 dígitos. Escolha um assento verde no mapa.
-          </Text>
-        ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );

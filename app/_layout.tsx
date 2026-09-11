@@ -7,6 +7,7 @@ import { ActivityIndicator, View } from 'react-native';
 import { Provider } from 'react-redux';
 import 'react-native-reanimated';
 
+import { useExecutionBackgroundNotification } from '@/hooks/useExecutionBackgroundNotification';
 import { useColorScheme } from '@/components/useColorScheme';
 import { AuthProvider } from '@/hooks/useAuth';
 import { persistor, store } from '@/store/store';
@@ -18,6 +19,11 @@ export {
 export const unstable_settings = {
   initialRouteName: '(auth)',
 };
+
+function AppRuntimeEffects() {
+  useExecutionBackgroundNotification();
+  return null;
+}
 
 function PersistLoading() {
   return (
@@ -66,6 +72,7 @@ export default function RootLayout() {
     <Provider store={store}>
       <PersistBootstrap>
         <AuthProvider>
+          <AppRuntimeEffects />
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(auth)" />

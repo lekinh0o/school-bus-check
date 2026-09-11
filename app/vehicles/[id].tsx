@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 
 import { BusSeatMap } from '@/components/BusSeatMap';
+import { FieldChecklist } from '@/components/FieldChecklist';
+import { useLeaveConfirmation } from '@/hooks/useLeaveConfirmation';
 import { addVehicle, selectVehicleById, updateVehicle } from '@/store/vehicleSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { SeatAssignment, Vehicle } from '@/types';
@@ -75,6 +77,28 @@ export default function VehicleFormScreen() {
   const canSubmit =
     isValidPlate(plate) && responsible.trim().length > 0 && seatCount > 0;
 
+  const checklist = [
+    { label: 'Placa válida', done: isValidPlate(plate) },
+    { label: 'Responsável', done: responsible.trim().length > 0 },
+    { label: 'Quantidade de assentos', done: seatCount > 0 },
+  ];
+
+  const isDirty = isCreate
+    ? plate.length > 0 || responsible.length > 0 || totalSeatsInput.length > 0
+    : Boolean(
+        existing &&
+          (plate !== existing.plate ||
+            responsible !== existing.responsible ||
+            totalSeatsInput !== String(existing.totalSeats) ||
+            photoUri !== existing.photoUri),
+      );
+
+  const { allowNextLeave } = useLeaveConfirmation({
+    shouldConfirm: isDirty,
+    title: 'Sair do cadastro?',
+    message: 'As alterações não salvas serão perdidas. Deseja sair mesmo assim?',
+  });
+
   async function handlePickPhoto() {
     const uri = await pickLocalImage([4, 3]);
     if (uri) {
@@ -111,6 +135,7 @@ export default function VehicleFormScreen() {
       );
     }
 
+    allowNextLeave();
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -189,6 +214,7 @@ export default function VehicleFormScreen() {
           </View>
         ) : null}
 
+        <FieldChecklist items={checklist} />
         <Pressable
           disabled={!canSubmit}
           onPress={handleSubmit}

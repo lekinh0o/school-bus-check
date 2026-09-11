@@ -13,7 +13,9 @@ import {
 
 import { addSchool, selectSchoolById, updateSchool } from '@/store/schoolSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
+import { FieldChecklist } from '@/components/FieldChecklist';
 import { BoardingPointMapPicker } from '@/components/BoardingPointMapPicker';
+import { useLeaveConfirmation } from '@/hooks/useLeaveConfirmation';
 import { entityCoords, type MapCoords } from '@/lib/geocode';
 import { formatPhoneBr, isValidPhoneBr } from '@/lib/inputMasks';
 import { pickLocalImage } from '@/lib/pickImage';
@@ -53,6 +55,32 @@ export default function SchoolFormScreen() {
     address.trim().length > 0 &&
     principal.trim().length > 0 &&
     isValidPhoneBr(phone);
+
+  const checklist = [
+    { label: 'Nome', done: name.trim().length > 0 },
+    { label: 'Endereço', done: address.trim().length > 0 },
+    { label: 'Diretor(a)', done: principal.trim().length > 0 },
+    { label: 'Telefone com DDD', done: isValidPhoneBr(phone) },
+  ];
+
+  const isDirty = isCreate
+    ? name.length > 0 ||
+      address.length > 0 ||
+      principal.length > 0 ||
+      phone.length > 0
+    : Boolean(
+        existing &&
+          (name !== existing.name ||
+            address !== existing.address ||
+            principal !== existing.principal ||
+            formatPhoneBr(phone) !== formatPhoneBr(existing.phone)),
+      );
+
+  const { allowNextLeave } = useLeaveConfirmation({
+    shouldConfirm: isDirty,
+    title: 'Sair do cadastro?',
+    message: 'As alterações não salvas serão perdidas. Deseja sair mesmo assim?',
+  });
 
   async function handlePickPhoto() {
     const uri = await pickLocalImage([4, 3]);
@@ -95,6 +123,7 @@ export default function SchoolFormScreen() {
       );
     }
 
+    allowNextLeave();
     if (router.canGoBack()) {
       router.back();
     } else {
@@ -180,6 +209,7 @@ export default function SchoolFormScreen() {
           className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
         />
 
+        <FieldChecklist items={checklist} />
         <Pressable
           disabled={!canSubmit}
           onPress={handleSubmit}

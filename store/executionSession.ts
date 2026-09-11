@@ -86,6 +86,9 @@ export function incompleteIdaTrip(
   if (!last || last.direction !== 'IDA') {
     return undefined;
   }
+  if (last.cycleJustification) {
+    return undefined;
+  }
   return last;
 }
 

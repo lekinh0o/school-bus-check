@@ -47,10 +47,23 @@ export function isValidPhoneBr(value: string): boolean {
 
 export function formatTimeInput(raw: string): string {
   const digits = raw.replace(/\D/g, '').slice(0, 4);
+  if (digits.length === 0) {
+    return '';
+  }
   if (digits.length <= 2) {
+    if (digits.length === 2 && Number.parseInt(digits, 10) > 23) {
+      return '23';
+    }
     return digits;
   }
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+  const hourNum = Math.min(23, Number.parseInt(digits.slice(0, 2), 10));
+  let minute = digits.slice(2);
+  if (minute.length === 2) {
+    minute = String(Math.min(59, Number.parseInt(minute, 10))).padStart(2, '0');
+  } else if (minute.length === 1 && Number.parseInt(minute, 10) > 5) {
+    minute = '5';
+  }
+  return `${String(hourNum).padStart(2, '0')}:${minute}`;
 }
 
 export function isValidHhMm(value: string): boolean {

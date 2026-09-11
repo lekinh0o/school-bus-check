@@ -46,7 +46,14 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#0F6B4D"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

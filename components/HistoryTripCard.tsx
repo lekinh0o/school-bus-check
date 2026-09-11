@@ -1,35 +1,70 @@
-import { Pressable, Text } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { Pressable, Text, View } from 'react-native';
 
-import { formatDuration, formatTripDate } from '@/lib/formatTrip';
+import { cardShadow, palette } from '@/constants/Colors';
+import { formatDuration, formatTripHeadline } from '@/lib/formatTrip';
 import type { RouteHistory } from '@/types/execution';
 
 export function HistoryTripCard({
   item,
   title,
   onPress,
+  compact = false,
 }: {
   item: RouteHistory;
   title: string;
   onPress: () => void;
+  compact?: boolean;
 }) {
+  const headline = formatTripHeadline(
+    item.finishedAt || item.startedAt,
+    title,
+    item.direction,
+  );
+
   return (
     <Pressable
       onPress={onPress}
-      className="mt-3 rounded-2xl border border-slate-200 bg-white p-4">
-      <Text className="text-lg font-bold text-slate-900">{title}</Text>
-      <Text className="mt-1 text-sm text-slate-500">
-        {formatTripDate(item.finishedAt || item.startedAt)}
-      </Text>
-      <Text className="mt-1 text-sm font-semibold text-brand">
-        {item.direction === 'IDA' ? '☀️ IDA' : '🌙 VOLTA'}
-      </Text>
-      <Text className="mt-1 text-sm text-slate-600">
-        Duração: {formatDuration(item.startedAt, item.finishedAt)}
-      </Text>
-      <Text className="mt-1 text-xs text-slate-500">
-        {item.metrics.present} presentes · {item.metrics.absent} ausentes ·{' '}
-        {item.metrics.skippedPoints} pulados
-      </Text>
+      accessibilityRole="button"
+      accessibilityLabel={`Viagem ${title}`}
+      style={compact ? undefined : cardShadow}
+      className={
+        compact
+          ? 'flex-row items-start py-3'
+          : 'mt-3 rounded-card border border-[#EEF2F6] bg-surface p-4'
+      }>
+      <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-secondary">
+        <Feather name="clock" size={18} color={palette.primary} />
+      </View>
+      <View className="ml-3 flex-1">
+        <Text className="text-[15px] font-semibold text-ink">{headline}</Text>
+        <View className="mt-1 flex-row flex-wrap items-center">
+          <Feather name="check-circle" size={14} color={palette.success} />
+          <Text className="ml-1 text-[12px] text-ink-secondary">
+            {item.metrics.present} presentes
+          </Text>
+          <Feather
+            name="x-circle"
+            size={14}
+            color={palette.danger}
+            style={{ marginLeft: 10 }}
+          />
+          <Text className="ml-1 text-[12px] text-ink-secondary">
+            {item.metrics.absent} ausentes
+          </Text>
+          {item.metrics.skippedPoints > 0 ? (
+            <>
+              <Text className="mx-2 text-ink-muted">|</Text>
+              <Text className="text-[12px] text-ink-secondary">
+                {item.metrics.skippedPoints} pulados
+              </Text>
+            </>
+          ) : null}
+          <Text className="ml-2 text-[12px] text-ink-muted">
+            |  Duração: {formatDuration(item.startedAt, item.finishedAt)}
+          </Text>
+        </View>
+      </View>
     </Pressable>
   );
 }

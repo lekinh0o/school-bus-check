@@ -2,8 +2,10 @@ import { Feather } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { VehicleListModal } from '@/components/VehicleListModal';
+import { cardShadow, palette } from '@/constants/Colors';
 import { selectAllRoutes } from '@/store/routeSlice';
 import { selectAllSchools } from '@/store/schoolSlice';
 import { selectAllStudents } from '@/store/studentSlice';
@@ -15,34 +17,39 @@ const MENU = [
     key: 'vehicles',
     title: 'Veículos',
     hint: 'Vans e mapa de assentos',
-    icon: 'truck',
-    enabled: true,
+    icon: 'truck' as const,
+    well: 'bg-pastel-vehicle',
+    iconColor: palette.iconVehicle,
   },
   {
     key: 'schools',
     title: 'Escolas',
     hint: 'Unidades e diretoria',
-    icon: 'home',
-    enabled: true,
+    icon: 'home' as const,
+    well: 'bg-pastel-school',
+    iconColor: palette.iconSchool,
   },
   {
     key: 'routes',
     title: 'Rotas',
     hint: 'Percursos e escolas',
-    icon: 'map',
-    enabled: true,
+    icon: 'map' as const,
+    well: 'bg-pastel-route',
+    iconColor: palette.iconRoute,
   },
   {
     key: 'students',
     title: 'Alunos',
     hint: 'Vínculos, pontos e assentos',
-    icon: 'users',
-    enabled: true,
+    icon: 'users' as const,
+    well: 'bg-pastel-student',
+    iconColor: palette.iconStudent,
   },
 ] as const;
 
 export default function CadastrosScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [vehicleModalVisible, setVehicleModalVisible] = useState(false);
   const vehicleCount = useAppSelector(selectAllVehicles).length;
   const schoolCount = useAppSelector(selectAllSchools).length;
@@ -56,11 +63,7 @@ export default function CadastrosScreen() {
     students: studentCount,
   };
 
-  function handlePress(key: (typeof MENU)[number]['key'], enabled: boolean) {
-    if (!enabled) {
-      Alert.alert('Em breve', 'Este cadastro ainda não está disponível.');
-      return;
-    }
+  function handlePress(key: (typeof MENU)[number]['key']) {
     if (key === 'vehicles') {
       setVehicleModalVisible(true);
       return;
@@ -79,48 +82,37 @@ export default function CadastrosScreen() {
   }
 
   return (
-    <View className="flex-1 bg-slate-50 p-4">
-      <Text className="text-2xl font-bold text-slate-900">Cadastros</Text>
-      <Text className="mt-1 text-sm text-slate-500">
+    <View className="flex-1 bg-background px-4" style={{ paddingTop: insets.top + 8 }}>
+      <Text className="text-[30px] font-bold text-ink">Cadastros</Text>
+      <Text className="mt-2 text-[15px] text-ink-muted">
         Gerencie os dados mestres do transporte escolar.
       </Text>
 
       <View className="mt-6 flex-row flex-wrap justify-between">
         {MENU.map((item) => {
-          const color = item.enabled ? '#0F6B4D' : '#94A3B8';
+          const count = counts[item.key];
           return (
             <Pressable
               key={item.key}
-              onPress={() => handlePress(item.key, item.enabled)}
-              className={`mb-4 w-[48%] rounded-2xl border p-5 ${
-                item.enabled
-                  ? 'border-brand bg-brand-light'
-                  : 'border-slate-200 bg-white'
-              }`}>
+              onPress={() => handlePress(item.key)}
+              accessibilityRole="button"
+              accessibilityLabel={`${item.title}, ${count} cadastrados`}
+              style={cardShadow}
+              className="mb-4 w-[48%] rounded-card border border-[#EEF2F6] bg-surface p-4">
               <View
-                className={`mb-3 h-12 w-12 items-center justify-center rounded-2xl ${
-                  item.enabled ? 'bg-white' : 'bg-slate-100'
-                }`}>
-                <Feather name={item.icon} size={24} color={color} />
+                className={`h-11 w-11 items-center justify-center rounded-2xl ${item.well}`}>
+                <Feather name={item.icon} size={20} color={item.iconColor} />
               </View>
-              <Text
-                className={`text-lg font-bold ${
-                  item.enabled ? 'text-brand-dark' : 'text-slate-400'
-                }`}>
-                {item.title}
-              </Text>
-              <Text
-                className={`mt-1 text-sm ${
-                  item.enabled ? 'text-slate-600' : 'text-slate-400'
-                }`}>
+              <Text className="mt-4 text-[18px] font-bold text-ink">{item.title}</Text>
+              <Text className="mt-1 min-h-[36px] text-[13px] text-ink-muted">
                 {item.hint}
               </Text>
-              <Text
-                className={`mt-3 text-xs font-semibold ${
-                  item.enabled ? 'text-brand' : 'text-slate-400'
-                }`}>
-                {counts[item.key]} cadastrado{counts[item.key] === 1 ? '' : 's'}
-              </Text>
+              <View className="mt-4 flex-row items-center justify-between rounded-full bg-primary-light px-3 py-2">
+                <Text className="text-[12px] font-semibold text-primary">
+                  {count} cadastrado{count === 1 ? '' : 's'}
+                </Text>
+                <Feather name="chevron-right" size={16} color={palette.primary} />
+              </View>
             </Pressable>
           );
         })}

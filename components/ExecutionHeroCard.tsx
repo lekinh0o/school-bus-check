@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
 
+import { palette } from '@/constants/Colors';
 import type { DeviceLocationStatus } from '@/hooks/useExecutionLocation';
 import { formatDistance, proximityKind } from '@/lib/geo';
 
@@ -13,6 +14,9 @@ type ExecutionHeroCardProps = {
   locationStatus: DeviceLocationStatus;
   distanceMeters: number | undefined;
   inside: boolean;
+  stopIndex: number;
+  stopCount: number;
+  onNextStop?: () => void;
   onNavigateGoogle: () => void;
   onNavigateWaze: () => void;
   onRetryLocation: () => void;
@@ -27,44 +31,63 @@ export function ExecutionHeroCard({
   locationStatus,
   distanceMeters,
   inside,
+  stopIndex,
+  stopCount,
+  onNextStop,
   onNavigateGoogle,
   onNavigateWaze,
   onRetryLocation,
 }: ExecutionHeroCardProps) {
   const proximity = proximityKind(distanceMeters);
   const arrived = inside && hasTargetCoords && locationStatus === 'ready';
-  const cardClass = arrived
-    ? 'border-emerald-300 bg-emerald-800'
-    : 'border-brand bg-brand-dark';
 
   return (
-    <View className={`rounded-2xl border-2 px-4 py-4 ${cardClass}`}>
-      <Text className="text-xs font-extrabold uppercase tracking-wide text-white">
-        Próxima parada
-      </Text>
-      <Text className="mt-1 text-2xl font-extrabold text-white" numberOfLines={2}>
-        {pointName}
-      </Text>
-      <Text className="mt-1 text-sm font-semibold text-emerald-100">
-        {actionLabel}
-      </Text>
-
-      <View className="mt-3 flex-row flex-wrap items-center gap-x-4 gap-y-1">
-        <Text className="text-base font-bold text-white">
-          {distanceLine({
-            hasTargetCoords,
-            locationStatus,
-            distanceMeters,
-            arrived,
-            pointComplete,
-          })}
+    <View
+      className={`rounded-card px-4 py-4 ${
+        arrived ? 'bg-[#DCFCE7]' : 'bg-primary-light'
+      }`}>
+      <View className="flex-row items-start justify-between">
+        <Text className="text-[11px] font-extrabold uppercase tracking-wide text-primary">
+          Parada atual
         </Text>
-        <Text className="text-base font-bold text-white">
-          {studentCount} {studentCount === 1 ? 'aluno' : 'alunos'}
+        <Text className="text-[12px] font-semibold text-ink-muted">
+          {stopIndex + 1} de {stopCount}
         </Text>
       </View>
+      <Text className="mt-1 text-[22px] font-extrabold text-ink" numberOfLines={2}>
+        {actionLabel}
+      </Text>
+      <View className="mt-2 flex-row items-center justify-between">
+        <View className="min-w-0 flex-1 flex-row items-center pr-2">
+          <Feather name="map-pin" size={14} color={palette.primary} />
+          <Text className="ml-1 flex-1 text-[13px] font-semibold text-ink-secondary" numberOfLines={1}>
+            {pointName}
+          </Text>
+        </View>
+        {onNextStop ? (
+          <Pressable
+            onPress={onNextStop}
+            accessibilityRole="button"
+            accessibilityLabel="Próxima parada"
+            className="flex-row items-center rounded-full bg-primary px-3 py-2">
+            <Text className="text-[12px] font-extrabold text-white">Próxima parada</Text>
+            <Feather name="arrow-right" size={14} color="#FFFFFF" />
+          </Pressable>
+        ) : null}
+      </View>
 
-      <Text className="mt-2 text-sm font-bold text-emerald-100">
+      <Text className="mt-3 text-[14px] font-bold text-ink">
+        {distanceLine({
+          hasTargetCoords,
+          locationStatus,
+          distanceMeters,
+          arrived,
+          pointComplete,
+        })}
+        {'  ·  '}
+        {studentCount} {studentCount === 1 ? 'aluno' : 'alunos'}
+      </Text>
+      <Text className="mt-1 text-[13px] font-semibold text-ink-secondary">
         {statusLine({
           hasTargetCoords,
           locationStatus,
@@ -79,8 +102,8 @@ export function ExecutionHeroCard({
           onPress={onRetryLocation}
           accessibilityRole="button"
           accessibilityLabel="Tentar obter localização novamente"
-          className="mt-3 self-start rounded-xl bg-white/15 px-3 py-2">
-          <Text className="text-sm font-bold text-white">Tentar novamente</Text>
+          className="mt-3 self-start rounded-xl bg-surface px-3 py-2">
+          <Text className="text-sm font-bold text-primary-dark">Tentar novamente</Text>
         </Pressable>
       )}
 
@@ -89,17 +112,17 @@ export function ExecutionHeroCard({
           onPress={onNavigateGoogle}
           accessibilityRole="button"
           accessibilityLabel="Navegar até o ponto no Google Maps"
-          className="min-h-12 flex-1 flex-row items-center justify-center rounded-xl bg-white py-3">
-          <Feather name="map" size={18} color="#0A4D38" />
-          <Text className="ml-2 text-sm font-extrabold text-brand-dark">Maps</Text>
+          className="min-h-12 flex-1 flex-row items-center justify-center rounded-xl bg-surface py-3">
+          <Feather name="map" size={18} color={palette.primaryDark} />
+          <Text className="ml-2 text-sm font-extrabold text-primary-dark">Maps</Text>
         </Pressable>
         <Pressable
           onPress={onNavigateWaze}
           accessibilityRole="button"
           accessibilityLabel="Navegar até o ponto no Waze"
-          className="min-h-12 flex-1 flex-row items-center justify-center rounded-xl bg-white py-3">
-          <Feather name="navigation" size={18} color="#0A4D38" />
-          <Text className="ml-2 text-sm font-extrabold text-brand-dark">Waze</Text>
+          className="min-h-12 flex-1 flex-row items-center justify-center rounded-xl bg-surface py-3">
+          <Feather name="navigation" size={18} color={palette.primaryDark} />
+          <Text className="ml-2 text-sm font-extrabold text-primary-dark">Waze</Text>
         </Pressable>
       </View>
     </View>
