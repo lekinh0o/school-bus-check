@@ -260,14 +260,14 @@ const attendanceSlice = createSlice({
         justification: CycleJustification;
       }>,
     ) {
-      const trip = incompleteIdaTrip(
-        state.executionHistory ?? [],
-        action.payload.routeId,
-      );
-      if (!trip) {
+      const trips = (state.executionHistory ?? [])
+        .filter((trip) => trip.routeId === action.payload.routeId)
+        .sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+      const last = trips[trips.length - 1];
+      if (!last || last.direction !== 'IDA') {
         return;
       }
-      trip.cycleJustification = { ...action.payload.justification };
+      last.cycleJustification = { ...action.payload.justification };
     },
   },
 });

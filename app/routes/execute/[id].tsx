@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { type Href, Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { AppAlert, type AppAlertState } from '@/components/AppAlert';
@@ -36,7 +36,9 @@ import {
 import { isDropoffStop, isLastExecutionPoint } from '@/store/executionSession';
 import { selectRouteById } from '@/store/routeSlice';
 import { selectAllStudents } from '@/store/studentSlice';
-import { useAppDispatch, useAppSelector } from '@/store/store';
+import { LeaveConfirmSheet } from '@/components/LeaveConfirmSheet';
+import { useLeaveConfirmation } from '@/hooks/useLeaveConfirmation';
+import { persistor, useAppDispatch, useAppSelector } from '@/store/store';
 import { selectVehicleById } from '@/store/vehicleSlice';
 import type { Student } from '@/types';
 import type { ExecutionStatus } from '@/types/execution';
@@ -97,6 +99,17 @@ export default function ExecuteRouteScreen() {
   const session =
     execution && route && execution.routeId === route.id ? execution : null;
   const inProgress = session?.status === 'IN_PROGRESS';
+  const persistOnLeave = useCallback(() => {
+    void persistor.flush();
+  }, []);
+  const { allowNextLeave, sheetVisible, stay, leave } = useLeaveConfirmation({
+    shouldConfirm: Boolean(inProgress && session),
+    title: 'Sair da execução?',
+    message: 'Você pode sair agora e retomar depois pelo Início.',
+    confirmLabel: 'Sair',
+    presentation: 'sheet',
+    onConfirmLeave: persistOnLeave,
+  });
   const dropoff = inProgress && session ? isDropoffStop(session) : false;
   const lastPoint = inProgress && session ? isLastExecutionPoint(session) : false;
   const canSkip =
@@ -221,6 +234,7 @@ export default function ExecuteRouteScreen() {
         return;
       }
       dispatch(finishRouteExecution());
+      allowNextLeave();
       router.replace('/' as Href);
       return;
     }
@@ -643,6 +657,14 @@ export default function ExecuteRouteScreen() {
           })}
         </ScrollView>
       )}
+      <LeaveConfirmSheet
+        visible={sheetVisible}
+        title="Sair da execução?"
+        message="Você pode sair agora e retomar depois pelo Início."
+        confirmLabel="Sair"
+        onStay={stay}
+        onLeave={leave}
+      />
       <AppAlert alert={alert} onDismiss={() => setAlert(null)} />
       <StudentPhotoPreview
         visible={photoPreview !== null}
