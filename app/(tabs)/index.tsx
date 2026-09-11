@@ -12,7 +12,7 @@ import { cardShadow, palette } from '@/constants/Colors';
 import { formatLongDate } from '@/lib/localDate';
 import { allowedDirections, resolveOperationType } from '@/lib/operationType';
 import { formatRouteTimeWindow } from '@/lib/routeSchedule';
-import { selectExecutionHistory } from '@/store/attendanceSlice';
+import { selectActiveExecution, selectExecutionHistory } from '@/store/attendanceSlice';
 import { incompleteIdaTrip } from '@/store/executionSession';
 import { selectAllRoutes } from '@/store/routeSlice';
 import { useAppSelector } from '@/store/store';
@@ -37,6 +37,7 @@ export default function HomeScreen() {
   const routes = useAppSelector(selectAllRoutes);
   const schoolEntities = useAppSelector((state) => state.schools.entities);
   const history = useAppSelector(selectExecutionHistory);
+  const activeExecution = useAppSelector(selectActiveExecution);
   const [sheetRoute, setSheetRoute] = useState<Route | null>(null);
   const [sheetDirection, setSheetDirection] = useState<RouteDirection | undefined>();
   const [openIncomplete, setOpenIncomplete] = useState(false);
@@ -147,6 +148,36 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
             </View>
+
+            {activeExecution?.status === 'IN_PROGRESS' ? (
+              <Pressable
+                onPress={() =>
+                  router.push(
+                    `/routes/execute/${activeExecution.routeId}` as Href,
+                  )
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Continuar execução"
+                style={cardShadow}
+                className="mt-5 rounded-card border border-primary bg-primary-light px-4 py-3">
+                <View className="flex-row items-center">
+                  <Feather name="play-circle" size={20} color={palette.primary} />
+                  <View className="ml-3 flex-1">
+                    <Text className="text-[14px] font-bold text-ink">
+                      Execução em andamento
+                    </Text>
+                    <Text className="mt-0.5 text-[13px] text-ink-secondary">
+                      {routes.find((item) => item.id === activeExecution.routeId)
+                        ?.title ?? 'Rota'}{' '}
+                      · {activeExecution.direction === 'IDA' ? 'Ida' : 'Volta'}
+                    </Text>
+                  </View>
+                  <Text className="text-[13px] font-semibold text-primary">
+                    Continuar
+                  </Text>
+                </View>
+              </Pressable>
+            ) : null}
 
             {pendingRoute ? (
               <Pressable
@@ -273,7 +304,7 @@ export default function HomeScreen() {
                 Histórico recente
               </Text>
               <Pressable
-                onPress={() => router.push('/history' as Href)}
+                onPress={() => router.push('/(tabs)/historico' as Href)}
                 accessibilityRole="button"
                 accessibilityLabel="Ver histórico">
                 <Text className="text-[14px] font-semibold text-primary">Ver ›</Text>

@@ -3,6 +3,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
+import { CycleAlertBanner } from '@/components/CycleAlertBanner';
 import { BusSeatMap } from '@/components/BusSeatMap';
 import {
   GuardianContactSheet,
@@ -14,6 +15,7 @@ import { StudentAvatar } from '@/components/StudentAvatar';
 import { StudentPhotoPreview } from '@/components/StudentPhotoPreview';
 import { cardShadow, palette } from '@/constants/Colors';
 import { boardingPointNames } from '@/lib/boardingPoints';
+import { cycleJustificationLabel } from '@/lib/cycleJustification';
 import { formatClock } from '@/lib/formatTrip';
 import { buildRouteTimelineStops } from '@/components/RouteTimeline';
 import { selectExecutionHistory } from '@/store/attendanceSlice';
@@ -128,21 +130,11 @@ export default function HistoryDetailScreen() {
     <View className="flex-1 bg-background">
       <Stack.Screen options={{ title }} />
       {trip.cycleJustification ? (
-        <View className="border-b border-warning bg-primary-light px-4 py-3">
-          <Text className="text-xs font-bold uppercase text-ink">
-            Justificativa de ciclo
-          </Text>
-          <Text className="mt-1 text-sm text-ink-secondary">
-            {trip.cycleJustification.kind === 'forgot_morning'
-              ? 'Esqueci de iniciar de manhã'
-              : trip.cycleJustification.kind === 'afternoon_only'
-                ? 'Período exclusivo à tarde'
-                : trip.cycleJustification.kind === 'return_done_offline'
-                  ? 'Volta realizada sem o app'
-                  : trip.cycleJustification.kind === 'period_cancelled'
-                    ? 'Período cancelado/Feriado'
-                    : trip.cycleJustification.note ?? 'Texto livre'}
-          </Text>
+        <View className="px-4 pt-3">
+          <CycleAlertBanner
+            title="Justificativa de ciclo"
+            message={cycleJustificationLabel(trip.cycleJustification)}
+          />
         </View>
       ) : null}
       <View className="flex-row border-b border-[#EEF2F6] bg-surface">
