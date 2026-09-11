@@ -153,18 +153,21 @@ export function StartRouteSheet({
     router.push(`/routes/execute/${route.id}` as Href);
   }
 
-  function startNewIdaAfterJustify(justification: CycleJustification) {
+  function applyIncompleteJustification(justification: CycleJustification) {
     if (!route) {
       return;
     }
-    setDirection('IDA');
     dispatch(
       justifyIncompleteCycle({
         routeId: route.id,
         justification,
       }),
     );
-    startFresh(undefined, 'IDA');
+    setIncompleteOpen(false);
+    setCycleNote('');
+    if (openIncompleteOnShow) {
+      onClose();
+    }
   }
 
   function handleStart() {
@@ -218,12 +221,12 @@ export function StartRouteSheet({
               </Text>
               <Text className="mt-1 text-sm text-ink-muted">{incompleteLabel}</Text>
               <Text className="mt-2 text-sm text-ink-muted">
-                Há uma Ida sem Volta posterior. Informe o motivo para iniciar
-                uma nova Ida.
+                Há uma Ida sem Volta posterior. Informe o motivo para encerrar
+                essa pendência. Isso não inicia um novo trajeto.
               </Text>
               <Pressable
                 onPress={() =>
-                  startNewIdaAfterJustify({ kind: 'return_done_offline' })
+                  applyIncompleteJustification({ kind: 'return_done_offline' })
                 }
                 className="mt-4 min-h-12 items-center justify-center rounded-button bg-primary py-3">
                 <Text className="text-sm font-bold text-white">
@@ -232,7 +235,7 @@ export function StartRouteSheet({
               </Pressable>
               <Pressable
                 onPress={() =>
-                  startNewIdaAfterJustify({ kind: 'period_cancelled' })
+                  applyIncompleteJustification({ kind: 'period_cancelled' })
                 }
                 className="mt-2 min-h-12 items-center justify-center rounded-button border border-divider py-3">
                 <Text className="text-sm font-bold text-ink">
@@ -251,7 +254,7 @@ export function StartRouteSheet({
               <Pressable
                 disabled={cycleNote.trim().length === 0}
                 onPress={() =>
-                  startNewIdaAfterJustify({
+                  applyIncompleteJustification({
                     kind: 'free_text',
                     note: cycleNote.trim(),
                   })
