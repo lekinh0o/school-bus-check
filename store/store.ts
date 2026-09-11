@@ -14,6 +14,8 @@ import {
   type PersistedState,
 } from 'redux-persist';
 
+import { normalizeBoardingPoints } from '@/lib/boardingPoints';
+
 import attendanceReducer from './attendanceSlice';
 import routeReducer from './routeSlice';
 import schoolReducer from './schoolSlice';
@@ -253,12 +255,43 @@ const migrations: MigrationManifest = {
       },
     };
   },
+  7: (state: PersistedState) => {
+    if (!state || typeof state !== 'object') {
+      return state;
+    }
+
+    const root = state as PersistedState & { routes?: PersistedEntitySlice };
+    const routes = root.routes;
+    if (!routes?.entities) {
+      return state;
+    }
+
+    const entities = { ...routes.entities };
+    for (const id of Object.keys(entities)) {
+      const route = entities[id];
+      if (!route) {
+        continue;
+      }
+      entities[id] = {
+        ...route,
+        boardingPoints: normalizeBoardingPoints(route.boardingPoints),
+      };
+    }
+
+    return {
+      ...root,
+      routes: {
+        ...routes,
+        entities,
+      },
+    };
+  },
 };
 
 const persistConfig = {
   key: 'root',
   storage,
-  version: 6,
+  version: 7,
   timeout: 0,
   migrate: createMigrate(migrations, { debug: false }),
 };

@@ -7,6 +7,7 @@ import {
   buildRouteTimelineStops,
   RouteTimeline,
 } from '@/components/RouteTimeline';
+import { boardingPointNames } from '@/lib/boardingPoints';
 import { OPERATION_TYPE_LABEL, resolveOperationType } from '@/lib/operationType';
 import { formatRouteTimeWindow } from '@/lib/routeSchedule';
 import { removeRoute, selectAllRoutes } from '@/store/routeSlice';
@@ -122,7 +123,7 @@ export default function RoutesListScreen() {
                 <RouteTimeline
                   stops={buildRouteTimelineStops(
                     route.startPoint,
-                    route.boardingPoints,
+                    boardingPointNames(route.boardingPoints),
                     schoolName,
                   )}
                 />

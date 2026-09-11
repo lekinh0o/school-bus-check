@@ -21,6 +21,8 @@ export type School = {
   studentIds: string[];
   routeIds: string[];
   photoUri?: string;
+  latitude?: number;
+  longitude?: number;
 };
 
 export type RoutePeriod = 'Manha' | 'Tarde' | 'Noite';
@@ -29,13 +31,22 @@ export type RouteDirection = 'IDA' | 'VOLTA';
 
 export type OperationType = 'IDA_E_VOLTA' | 'SOMENTE_IDA' | 'SOMENTE_VOLTA';
 
+export type BoardingPoint = {
+  id: string;
+  name: string;
+  latitude?: number;
+  longitude?: number;
+};
+
 export type Route = {
   id: string;
   title: string;
   responsible: string;
   monitor: string;
   startPoint: string;
-  boardingPoints: string[];
+  startLatitude?: number;
+  startLongitude?: number;
+  boardingPoints: BoardingPoint[];
   schoolId: string;
   departureTimeIda: string;
   arrivalTimeIda: string;

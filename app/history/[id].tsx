@@ -12,6 +12,7 @@ import { SnakePathTimeline, type SnakeStop } from '@/components/SnakePathTimelin
 import { ExecutionStatusBadge } from '@/components/StatusTag';
 import { StudentAvatar } from '@/components/StudentAvatar';
 import { StudentPhotoPreview } from '@/components/StudentPhotoPreview';
+import { boardingPointNames } from '@/lib/boardingPoints';
 import { formatClock } from '@/lib/formatTrip';
 import { buildRouteTimelineStops } from '@/components/RouteTimeline';
 import { selectExecutionHistory } from '@/store/attendanceSlice';
@@ -94,7 +95,7 @@ export default function HistoryDetailScreen() {
     }
     return buildRouteTimelineStops(
       route.startPoint,
-      route.boardingPoints,
+      boardingPointNames(route.boardingPoints),
       schoolName,
       trip.direction,
     ).map((stop, index) => ({

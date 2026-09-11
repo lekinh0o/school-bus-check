@@ -50,6 +50,13 @@ O sistema SHALL permitir abrir uma escola existente no formulário, com os campo
 - **WHEN** o usuário altera campos de texto e salva
 - **THEN** o sistema atualiza apenas esses campos, preserva `studentIds` e `routeIds`, e retorna à tela anterior
 
+### Requirement: Local da escola no mapa
+O cadastro da escola SHALL permitir marcar a localização da escola no mapa (busca pelo endereço ou toque/arraste do pino). Coordenadas MUST NOT ser obrigatórias para salvar. Se marcadas, MUST persistir com a escola e permanecer ao reabrir o formulário.
+
+#### Scenario: Marcar escola no mapa
+- **WHEN** o usuário confirma um pino no mapa da escola e salva
+- **THEN** a escola persiste latitude e longitude e o formulário mostra que o local está marcado
+
 ### Requirement: Excluir escola
 O sistema SHALL exigir confirmação explícita antes de excluir uma escola. Após confirmação, a escola MUST ser removida da listagem.
 

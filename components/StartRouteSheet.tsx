@@ -12,6 +12,7 @@ import { selectAllStudents } from '@/store/studentSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { Route, RouteDirection } from '@/types';
 import type { CycleJustification } from '@/types/execution';
+import { boardingPointNames } from '@/lib/boardingPoints';
 import { formatLocalDate } from '@/lib/localDate';
 import {
   allowedDirections,
@@ -74,7 +75,7 @@ export function StartRouteSheet({
         schoolId: route.schoolId,
         direction,
         startPoint: route.startPoint,
-        boardingPoints: route.boardingPoints,
+        boardingPoints: boardingPointNames(route.boardingPoints),
         students: routeStudents.map((student) => ({
           studentId: student.id,
           boardingPoint: student.boardingPoint,

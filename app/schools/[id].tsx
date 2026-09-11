@@ -13,6 +13,8 @@ import {
 
 import { addSchool, selectSchoolById, updateSchool } from '@/store/schoolSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
+import { BoardingPointMapPicker } from '@/components/BoardingPointMapPicker';
+import { entityCoords, type MapCoords } from '@/lib/geocode';
 import { formatPhoneBr, isValidPhoneBr } from '@/lib/inputMasks';
 import { pickLocalImage } from '@/lib/pickImage';
 
@@ -31,6 +33,8 @@ export default function SchoolFormScreen() {
   const [principal, setPrincipal] = useState('');
   const [phone, setPhone] = useState('');
   const [photoUri, setPhotoUri] = useState<string | undefined>();
+  const [coords, setCoords] = useState<MapCoords | undefined>();
+  const [mapOpen, setMapOpen] = useState(false);
 
   useEffect(() => {
     if (!existing) {
@@ -41,6 +45,7 @@ export default function SchoolFormScreen() {
     setPrincipal(existing.principal);
     setPhone(formatPhoneBr(existing.phone));
     setPhotoUri(existing.photoUri);
+    setCoords(entityCoords(existing));
   }, [existing]);
 
   const canSubmit =
@@ -67,6 +72,9 @@ export default function SchoolFormScreen() {
       principal: principal.trim(),
       phone: formatPhoneBr(phone),
       photoUri,
+      ...(coords
+        ? { latitude: coords.latitude, longitude: coords.longitude }
+        : {}),
     };
 
     if (isCreate) {
@@ -139,6 +147,15 @@ export default function SchoolFormScreen() {
           placeholderTextColor="#94A3B8"
           className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
         />
+        <Pressable
+          onPress={() => setMapOpen(true)}
+          className="mt-2 items-center rounded-2xl border border-brand bg-brand-light py-3">
+          <Text className="text-sm font-semibold text-brand-dark">
+            {coords
+              ? 'Local da escola marcado · tocar para ajustar'
+              : 'Escolher escola no mapa'}
+          </Text>
+        </Pressable>
 
         <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
           Diretor(a)
@@ -172,6 +189,17 @@ export default function SchoolFormScreen() {
           <Text className="text-lg font-bold text-white">Salvar</Text>
         </Pressable>
       </ScrollView>
+      <BoardingPointMapPicker
+        visible={mapOpen}
+        title="Local da escola"
+        searchHint={address || name}
+        initialCoords={coords}
+        onClose={() => setMapOpen(false)}
+        onConfirm={(next) => {
+          setCoords(next);
+          setMapOpen(false);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
