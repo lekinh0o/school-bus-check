@@ -16,6 +16,8 @@ import { useExecutionLocation } from '@/hooks/useExecutionLocation';
 import { playArrivalChime } from '@/lib/arrivalSound';
 import { currentStopCoords } from '@/lib/executionStop';
 import { openNavigation, type NavigationApp } from '@/lib/mapNavigation';
+import { cardShadow, palette } from '@/constants/Colors';
+import { formatLongDate } from '@/lib/localDate';
 import { formatRouteTimeWindow } from '@/lib/routeSchedule';
 import {
   advanceToNextPoint,
@@ -242,9 +244,9 @@ export default function ExecuteRouteScreen() {
 
   if (!route) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50 px-6">
+      <View className="flex-1 items-center justify-center bg-background px-6">
         <Stack.Screen options={{ title: 'Executar rota' }} />
-        <Text className="text-center text-base text-slate-500">
+        <Text className="text-center text-base text-ink-muted">
           Rota não encontrada.
         </Text>
       </View>
@@ -253,16 +255,16 @@ export default function ExecuteRouteScreen() {
 
   if (!inProgress || !session) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50 px-6">
+      <View className="flex-1 items-center justify-center bg-background px-6">
         <Stack.Screen options={{ title: route.title }} />
-        <Text className="text-center text-base text-slate-500">
+        <Text className="text-center text-base text-ink-muted">
           Inicie o trajeto pela tela Início, escolhendo o sentido.
         </Text>
         <Pressable
           onPress={() =>
             router.canGoBack() ? router.back() : router.replace('/' as Href)
           }
-          className="mt-6 items-center rounded-2xl bg-brand px-6 py-4">
+          className="mt-6 min-h-14 items-center justify-center rounded-button bg-primary px-6 py-4">
           <Text className="text-base font-bold text-white">Voltar</Text>
         </Pressable>
       </View>
@@ -270,35 +272,42 @@ export default function ExecuteRouteScreen() {
   }
 
   return (
-    <View className="flex-1 bg-slate-100">
-      <Stack.Screen options={{ title: route.title }} />
-      <View className="border-b border-slate-300 bg-white px-4 py-2">
-        <Text className="text-sm font-extrabold text-brand-dark">
-          {session.direction === 'IDA' ? 'Ida' : 'Volta'} ·{' '}
+    <View className="flex-1 bg-background">
+      <Stack.Screen
+        options={{
+          title: route.title,
+          headerTintColor: palette.primary,
+          headerStyle: { backgroundColor: palette.surface },
+          headerShadowVisible: false,
+        }}
+      />
+      <View className="bg-surface px-4 pb-2">
+        <Text className="text-sm font-semibold text-ink-muted">
+          {session.direction === 'IDA' ? 'Ida' : 'Volta'} •{' '}
           {formatRouteTimeWindow(route, session.direction)}
         </Text>
       </View>
-      <View className="flex-row border-b border-slate-300 bg-white">
+      <View className="flex-row border-b border-[#EEF2F6] bg-surface">
         <Pressable
           onPress={() => setTab('execucao')}
-          className={`flex-1 items-center py-4 ${
-            tab === 'execucao' ? 'border-b-2 border-brand' : ''
+          className={`flex-1 items-center py-3 ${
+            tab === 'execucao' ? 'border-b-2 border-primary' : ''
           }`}>
           <Text
             className={`text-base font-extrabold ${
-              tab === 'execucao' ? 'text-brand-dark' : 'text-slate-600'
+              tab === 'execucao' ? 'text-primary' : 'text-ink-muted'
             }`}>
             Execução
           </Text>
         </Pressable>
         <Pressable
           onPress={() => setTab('resumo')}
-          className={`flex-1 items-center py-4 ${
-            tab === 'resumo' ? 'border-b-2 border-brand' : ''
+          className={`flex-1 items-center py-3 ${
+            tab === 'resumo' ? 'border-b-2 border-primary' : ''
           }`}>
           <Text
             className={`text-base font-extrabold ${
-              tab === 'resumo' ? 'text-brand-dark' : 'text-slate-600'
+              tab === 'resumo' ? 'text-primary' : 'text-ink-muted'
             }`}>
             Resumo
           </Text>
@@ -307,11 +316,7 @@ export default function ExecuteRouteScreen() {
 
       {tab === 'execucao' ? (
         <View className="flex-1">
-          <View className="border-b border-slate-300 bg-white px-4 py-3">
-            <Text className="mb-2 text-sm font-extrabold text-slate-900">
-              {stats.present} Presentes | {stats.absent} Ausentes |{' '}
-              {session.skippedPoints.length} Pulados
-            </Text>
+          <ScrollView className="flex-1" contentContainerClassName="px-4 pb-8 pt-3">
             <ExecutionHeroCard
               pointName={pointName}
               actionLabel={dropoff ? 'Desembarque' : 'Embarque'}
@@ -321,26 +326,63 @@ export default function ExecuteRouteScreen() {
               locationStatus={location.status}
               distanceMeters={location.distanceMeters}
               inside={location.inside}
+              stopIndex={session.currentPointIndex}
+              stopCount={session.pointsList.length}
+              onNextStop={
+                canSkip ? () => dispatch(skipCurrentPoint()) : undefined
+              }
               onNavigateGoogle={() => void handleNavigate('google')}
               onNavigateWaze={() => void handleNavigate('waze')}
               onRetryLocation={location.retry}
             />
-            <SnakePathTimeline compact stops={snakeStops} />
-          </View>
+            <View className="mt-4 rounded-card bg-surface px-2 py-3">
+              <SnakePathTimeline compact stops={snakeStops} />
+            </View>
+            <View
+              style={cardShadow}
+              className="mt-3 flex-row rounded-card border border-[#EEF2F6] bg-surface p-2">
+              <View className="flex-1 items-center py-2">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-primary-light">
+                  <Feather name="user" size={16} color={palette.primary} />
+                </View>
+                <Text className="mt-1 text-[16px] font-bold text-ink">{stats.present}</Text>
+                <Text className="text-[11px] text-ink-muted">Presentes</Text>
+              </View>
+              <View className="flex-1 items-center py-2">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-[#FEE2E2]">
+                  <Feather name="x" size={16} color={palette.danger} />
+                </View>
+                <Text className="mt-1 text-[16px] font-bold text-ink">{stats.absent}</Text>
+                <Text className="text-[11px] text-ink-muted">Ausentes</Text>
+              </View>
+              <View className="flex-1 items-center py-2">
+                <View className="h-10 w-10 items-center justify-center rounded-full bg-pastel-route">
+                  <Feather name="minus" size={16} color={palette.iconRoute} />
+                </View>
+                <Text className="mt-1 text-[16px] font-bold text-ink">
+                  {session.skippedPoints.length}
+                </Text>
+                <Text className="text-[11px] text-ink-muted">Pulados</Text>
+              </View>
+            </View>
 
-          <ScrollView className="flex-1" contentContainerClassName="px-4 pb-8 pt-3">
             {pointStudents.length === 0 ? (
-              <Text className="mt-4 text-center text-base font-semibold text-slate-700">
+              <Text className="mt-4 text-center text-base font-semibold text-ink-secondary">
                 Nenhum aluno aguardando ação neste ponto.
               </Text>
-            ) : null}
+            ) : (
+              <Text className="mt-5 mb-2 text-[15px] font-bold text-ink">
+                Aluno da parada
+              </Text>
+            )}
             {pointStudents.map((item) => {
               const student = studentsById[item.studentId];
               const displayName = student?.name ?? 'Aluno';
               return (
                 <View
                   key={item.studentId}
-                  className="mb-3 rounded-2xl border-2 border-slate-300 bg-white p-3">
+                  style={cardShadow}
+                  className="mb-3 rounded-card border border-[#EEF2F6] bg-surface p-3">
                   <View className="flex-row items-start">
                     <StudentAvatar
                       size="lg"
@@ -356,15 +398,24 @@ export default function ExecuteRouteScreen() {
                       }
                     />
                     <View className="ml-3 flex-1">
-                      <Text className="text-lg font-extrabold text-slate-900">
+                      <Text className="text-lg font-extrabold text-ink">
                         {displayName}
                       </Text>
                       <MissedIdaBadge show={Boolean(missedIda[item.studentId])} />
-                      <Text className="text-sm font-semibold text-slate-700">
+                      <Text className="text-sm font-semibold text-ink-secondary">
                         {item.boardingPoint}
                       </Text>
                       <ExecutionStatusBadge status={item.status} />
                     </View>
+                    <Pressable
+                      onPress={() =>
+                        startGuardianContact(student?.contactPhones, setContactPhones)
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={`Contatar responsável de ${displayName}`}
+                      className="h-11 w-11 items-center justify-center rounded-full bg-primary-light">
+                      <Feather name="phone" size={18} color={palette.primaryDark} />
+                    </Pressable>
                   </View>
                   <View className="mt-3 flex-row gap-2">
                     {dropoff ? (
@@ -379,7 +430,7 @@ export default function ExecuteRouteScreen() {
                         }
                         accessibilityRole="button"
                         accessibilityLabel={`Marcar desembarque de ${displayName}`}
-                        className="min-h-14 flex-1 flex-row items-center justify-center rounded-xl bg-emerald-700 py-3 active:bg-emerald-800">
+                        className="min-h-14 flex-1 flex-row items-center justify-center rounded-button bg-primary py-3">
                         <Feather name="log-out" size={18} color="#FFFFFF" />
                         <Text className="ml-2 text-sm font-extrabold text-white">
                           Desembarque
@@ -398,7 +449,7 @@ export default function ExecuteRouteScreen() {
                           }
                           accessibilityRole="button"
                           accessibilityLabel={`Marcar ${displayName} como presente`}
-                          className="min-h-14 flex-1 flex-row items-center justify-center rounded-xl bg-emerald-700 py-3 active:bg-emerald-800">
+                          className="min-h-14 flex-1 flex-row items-center justify-center rounded-button bg-primary py-3">
                           <Feather name="check" size={18} color="#FFFFFF" />
                           <Text className="ml-2 text-sm font-extrabold text-white">
                             Presente
@@ -415,7 +466,7 @@ export default function ExecuteRouteScreen() {
                           }
                           accessibilityRole="button"
                           accessibilityLabel={`Marcar ${displayName} como ausente`}
-                          className="min-h-14 flex-1 flex-row items-center justify-center rounded-xl bg-orange-600 py-3 active:bg-orange-700">
+                          className="min-h-14 flex-1 flex-row items-center justify-center rounded-button bg-[#EA580C] py-3">
                           <Feather name="x" size={18} color="#FFFFFF" />
                           <Text className="ml-2 text-sm font-extrabold text-white">
                             Ausente
@@ -423,16 +474,19 @@ export default function ExecuteRouteScreen() {
                         </Pressable>
                       </>
                     )}
-                    <Pressable
-                      onPress={() =>
-                        startGuardianContact(student?.contactPhones, setContactPhones)
-                      }
-                      accessibilityRole="button"
-                      accessibilityLabel={`Contatar responsável de ${displayName}`}
-                      className="h-14 w-14 items-center justify-center rounded-xl bg-brand-light">
-                      <Feather name="phone" size={20} color="#0A4D38" />
-                    </Pressable>
                   </View>
+                  {canSkip ? (
+                    <Pressable
+                      onPress={() => dispatch(skipCurrentPoint())}
+                      accessibilityRole="button"
+                      accessibilityLabel="Pular ponto, não embarcou"
+                      className="mt-2 min-h-12 flex-row items-center justify-center rounded-button border border-divider">
+                      <Feather name="minus" size={16} color={palette.textMuted} />
+                      <Text className="ml-2 text-sm font-semibold text-ink-secondary">
+                        Pular (não embarcou)
+                      </Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               );
             })}
@@ -452,26 +506,70 @@ export default function ExecuteRouteScreen() {
         </View>
       ) : (
         <ScrollView className="flex-1" contentContainerClassName="p-4 pb-10">
+          <View
+            style={cardShadow}
+            className="rounded-card border border-[#EEF2F6] bg-surface p-4">
+            <View className="flex-row items-start">
+              <View className="h-11 w-11 items-center justify-center rounded-2xl bg-primary-light">
+                <Feather name="calendar" size={18} color={palette.primary} />
+              </View>
+              <View className="ml-3 flex-1">
+                <Text className="text-[16px] font-bold text-ink">
+                  Rota {route.title} ({session.direction})
+                </Text>
+                <Text className="mt-0.5 text-[13px] text-ink-muted">
+                  {formatRouteTimeWindow(route, session.direction)}
+                </Text>
+              </View>
+              <View className="items-end">
+                <Text className="text-[13px] font-bold text-primary">Em andamento</Text>
+                <Text className="mt-1 text-[12px] text-ink-muted">
+                  {formatLongDate(session.startedAt)}
+                </Text>
+              </View>
+            </View>
+          </View>
+          <View className="mt-3 flex-row gap-2">
+            <View className="flex-1 items-center rounded-card bg-primary-light py-3">
+              <Text className="text-xl font-bold text-ink">{stats.present}</Text>
+              <Text className="text-[11px] text-ink-muted">Presentes</Text>
+            </View>
+            <View className="flex-1 items-center rounded-card bg-[#FEE2E2] py-3">
+              <Text className="text-xl font-bold text-ink">{stats.absent}</Text>
+              <Text className="text-[11px] text-ink-muted">Ausentes</Text>
+            </View>
+            <View className="flex-1 items-center rounded-card bg-pastel-route py-3">
+              <Text className="text-xl font-bold text-ink">
+                {session.skippedPoints.length}
+              </Text>
+              <Text className="text-[11px] text-ink-muted">Pulados</Text>
+            </View>
+          </View>
+          <Text className="mt-6 mb-2 text-[16px] font-bold text-ink">Mapa de assentos</Text>
           {vehicle ? (
-            <BusSeatMap
-              seatsMap={vehicle.seatsMap}
-              studentsById={studentsById}
-              executionStatusByStudentId={executionStatusByStudentId}
-            />
+            <View
+              style={cardShadow}
+              className="rounded-card border border-[#EEF2F6] bg-surface p-3">
+              <BusSeatMap
+                seatsMap={vehicle.seatsMap}
+                studentsById={studentsById}
+                executionStatusByStudentId={executionStatusByStudentId}
+              />
+            </View>
           ) : (
-            <Text className="text-sm font-semibold text-slate-700">
+            <Text className="text-sm font-semibold text-ink-secondary">
               Nenhum veículo vinculado aos alunos desta rota.
             </Text>
           )}
-          <Text className="mt-6 mb-2 text-sm font-extrabold text-slate-900">
-            Todos os alunos
+          <Text className="mt-6 mb-2 text-[16px] font-bold text-ink">
+            Lista de alunos
           </Text>
           {Object.values(session.attendances).map((item) => {
             const student = studentsById[item.studentId];
             return (
               <View
                 key={item.studentId}
-                className="mb-3 rounded-2xl border border-slate-200 bg-white p-3">
+                className="mb-3 rounded-card border border-[#EEF2F6] bg-surface p-3">
                 <View className="flex-row items-center">
                   <StudentAvatar
                     photoUri={student?.photoUri}
@@ -486,7 +584,7 @@ export default function ExecuteRouteScreen() {
                     }
                   />
                   <View className="ml-3 flex-1">
-                    <Text className="text-base font-semibold text-slate-900">
+                    <Text className="text-base font-semibold text-ink">
                       {student?.name ?? 'Aluno'}
                     </Text>
                     <ExecutionStatusBadge status={item.status} />
@@ -496,7 +594,7 @@ export default function ExecuteRouteScreen() {
                     onPress={() =>
                       startGuardianContact(student?.contactPhones, setContactPhones)
                     }
-                    className="h-12 w-12 items-center justify-center rounded-xl bg-brand-light">
+                    className="h-12 w-12 items-center justify-center rounded-button bg-primary-light">
                     <Feather name="phone" size={18} color="#0F6B4D" />
                   </Pressable>
                 </View>
@@ -510,8 +608,8 @@ export default function ExecuteRouteScreen() {
                         }),
                       )
                     }
-                    className="flex-1 items-center rounded-xl border border-slate-300 py-3">
-                    <Text className="text-xs font-bold text-slate-700">
+                    className="min-h-12 flex-1 items-center rounded-button border border-divider py-3">
+                    <Text className="text-xs font-bold text-ink-secondary">
                       Pendente
                     </Text>
                   </Pressable>
@@ -524,7 +622,7 @@ export default function ExecuteRouteScreen() {
                         }),
                       )
                     }
-                    className="flex-1 items-center rounded-xl bg-emerald-600 py-3">
+                    className="min-h-12 flex-1 items-center rounded-button bg-primary py-3">
                     <Text className="text-sm font-bold text-white">Presente</Text>
                   </Pressable>
                   <Pressable
@@ -536,7 +634,7 @@ export default function ExecuteRouteScreen() {
                         }),
                       )
                     }
-                    className="flex-1 items-center rounded-xl bg-orange-500 py-3">
+                    className="min-h-12 flex-1 items-center rounded-button bg-[#EA580C] py-3">
                     <Text className="text-sm font-bold text-white">Ausente</Text>
                   </Pressable>
                 </View>

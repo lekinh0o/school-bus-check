@@ -12,6 +12,7 @@ import { SnakePathTimeline, type SnakeStop } from '@/components/SnakePathTimelin
 import { ExecutionStatusBadge } from '@/components/StatusTag';
 import { StudentAvatar } from '@/components/StudentAvatar';
 import { StudentPhotoPreview } from '@/components/StudentPhotoPreview';
+import { cardShadow, palette } from '@/constants/Colors';
 import { boardingPointNames } from '@/lib/boardingPoints';
 import { formatClock } from '@/lib/formatTrip';
 import { buildRouteTimelineStops } from '@/components/RouteTimeline';
@@ -114,9 +115,9 @@ export default function HistoryDetailScreen() {
 
   if (!trip) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50 px-6">
+      <View className="flex-1 items-center justify-center bg-background px-6">
         <Stack.Screen options={{ title: 'Viagem' }} />
-        <Text className="text-center text-base text-slate-500">
+        <Text className="text-center text-base text-ink-muted">
           Viagem não encontrada.
         </Text>
       </View>
@@ -124,14 +125,14 @@ export default function HistoryDetailScreen() {
   }
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <View className="flex-1 bg-background">
       <Stack.Screen options={{ title }} />
       {trip.cycleJustification ? (
-        <View className="border-b border-amber-200 bg-amber-50 px-4 py-3">
-          <Text className="text-xs font-bold uppercase text-amber-800">
+        <View className="border-b border-warning bg-primary-light px-4 py-3">
+          <Text className="text-xs font-bold uppercase text-ink">
             Justificativa de ciclo
           </Text>
-          <Text className="mt-1 text-sm text-amber-950">
+          <Text className="mt-1 text-sm text-ink-secondary">
             {trip.cycleJustification.kind === 'forgot_morning'
               ? 'Esqueci de iniciar de manhã'
               : trip.cycleJustification.kind === 'afternoon_only'
@@ -144,15 +145,15 @@ export default function HistoryDetailScreen() {
           </Text>
         </View>
       ) : null}
-      <View className="flex-row border-b border-slate-200 bg-white">
+      <View className="flex-row border-b border-[#EEF2F6] bg-surface">
         <Pressable
           onPress={() => setTab('timeline')}
           className={`flex-1 items-center py-4 ${
-            tab === 'timeline' ? 'border-b-2 border-brand' : ''
+            tab === 'timeline' ? 'border-b-2 border-primary' : ''
           }`}>
           <Text
             className={`text-base font-bold ${
-              tab === 'timeline' ? 'text-brand-dark' : 'text-slate-500'
+              tab === 'timeline' ? 'text-primary' : 'text-ink-muted'
             }`}>
             Timeline
           </Text>
@@ -160,11 +161,11 @@ export default function HistoryDetailScreen() {
         <Pressable
           onPress={() => setTab('resumo')}
           className={`flex-1 items-center py-4 ${
-            tab === 'resumo' ? 'border-b-2 border-brand' : ''
+            tab === 'resumo' ? 'border-b-2 border-primary' : ''
           }`}>
           <Text
             className={`text-base font-bold ${
-              tab === 'resumo' ? 'text-brand-dark' : 'text-slate-500'
+              tab === 'resumo' ? 'text-primary' : 'text-ink-muted'
             }`}>
             Resumo
           </Text>
@@ -173,9 +174,9 @@ export default function HistoryDetailScreen() {
 
       {tab === 'timeline' ? (
         <ScrollView className="flex-1" contentContainerClassName="p-4 pb-10">
-          <Text className="mb-2 text-sm font-bold text-slate-900">Percurso</Text>
+          <Text className="mb-2 text-sm font-bold text-ink">Percurso</Text>
           <SnakePathTimeline stops={snakeStops} />
-          <Text className="mt-6 mb-2 text-sm font-bold text-slate-900">
+          <Text className="mt-6 mb-2 text-sm font-bold text-ink">
             Auditoria
           </Text>
           {trip.pointLogs.map((log, index) => {
@@ -187,7 +188,7 @@ export default function HistoryDetailScreen() {
                 <View className="mr-3 items-center">
                   <View
                     className={`h-8 w-8 items-center justify-center rounded-full ${
-                      skipped ? 'bg-slate-200' : 'bg-brand-light'
+                      skipped ? 'bg-divider' : 'bg-primary-light'
                     }`}>
                     <Feather
                       name={skipped ? 'skip-forward' : 'check'}
@@ -196,21 +197,21 @@ export default function HistoryDetailScreen() {
                     />
                   </View>
                   {index < trip.pointLogs.length - 1 ? (
-                    <View className="mt-1 w-0.5 flex-1 bg-slate-200" />
+                    <View className="mt-1 w-0.5 flex-1 bg-divider" />
                   ) : null}
                 </View>
                 <View className="flex-1 pb-2">
                   {skipped ? (
-                    <Text className="text-base text-slate-400 line-through">
+                    <Text className="text-base text-ink-muted line-through">
                       {name}
                     </Text>
                   ) : (
-                    <Text className="text-base font-semibold text-slate-900">
+                    <Text className="text-base font-semibold text-ink">
                       {name} {clock ? `· ${clock}` : ''}
                     </Text>
                   )}
                   {skipped ? (
-                    <Text className="mt-0.5 text-sm text-slate-400">
+                    <Text className="mt-0.5 text-sm text-ink-muted">
                       [ Pulado ] {clock ? `às ${clock}` : ''}
                     </Text>
                   ) : null}
@@ -222,19 +223,23 @@ export default function HistoryDetailScreen() {
       ) : (
         <ScrollView className="flex-1" contentContainerClassName="p-4 pb-10">
           {vehicle ? (
-            <BusSeatMap
-              seatsMap={vehicle.seatsMap}
-              studentsById={studentsById}
-              executionStatusByStudentId={executionStatusByStudentId}
-              readOnly
-            />
+            <View
+              style={cardShadow}
+              className="rounded-card border border-[#EEF2F6] bg-surface p-3">
+              <BusSeatMap
+                seatsMap={vehicle.seatsMap}
+                studentsById={studentsById}
+                executionStatusByStudentId={executionStatusByStudentId}
+                readOnly
+              />
+            </View>
           ) : (
-            <Text className="text-sm text-slate-500">
+            <Text className="text-sm text-ink-muted">
               Nenhum veículo vinculado aos alunos desta rota.
             </Text>
           )}
-          <Text className="mt-6 mb-2 text-sm font-bold text-slate-900">
-            Todos os alunos
+          <Text className="mt-6 mb-2 text-[16px] font-bold text-ink">
+            Lista de alunos
           </Text>
           {Object.values(trip.attendances).map((item) => {
             const student = studentsById[item.studentId];
@@ -242,7 +247,8 @@ export default function HistoryDetailScreen() {
             return (
               <View
                 key={item.studentId}
-                className="mb-3 rounded-2xl border border-slate-200 bg-white p-3">
+                style={cardShadow}
+                className="mb-3 rounded-card border border-[#EEF2F6] bg-surface p-3">
                 <View className="flex-row items-center">
                   <StudentAvatar
                     photoUri={student?.photoUri}
@@ -257,12 +263,12 @@ export default function HistoryDetailScreen() {
                     }
                   />
                   <View className="ml-3 flex-1">
-                    <Text className="text-base font-semibold text-slate-900">
+                    <Text className="text-base font-semibold text-ink">
                       {student?.name ?? 'Aluno'}
                     </Text>
                     <ExecutionStatusBadge status={item.status} />
                     {clock ? (
-                      <Text className="mt-0.5 text-xs text-slate-400">
+                      <Text className="mt-0.5 text-xs text-ink-muted">
                         Marcado às {clock}
                       </Text>
                     ) : null}
@@ -271,8 +277,8 @@ export default function HistoryDetailScreen() {
                     onPress={() =>
                       startGuardianContact(student?.contactPhones, setContactPhones)
                     }
-                    className="h-12 w-12 items-center justify-center rounded-xl bg-brand-light">
-                    <Feather name="phone" size={18} color="#0F6B4D" />
+                    className="h-12 w-12 items-center justify-center rounded-button bg-primary-light">
+                    <Feather name="phone" size={18} color={palette.primary} />
                   </Pressable>
                 </View>
               </View>

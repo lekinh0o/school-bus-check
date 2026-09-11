@@ -1,3 +1,5 @@
+import { formatLocalDate, localDateKey } from '@/lib/localDate';
+
 export function formatClock(iso: string): string {
   if (!iso) {
     return '';
@@ -21,6 +23,17 @@ export function formatTripDate(iso: string): string {
     return '';
   }
   return date.toLocaleDateString('pt-BR');
+}
+
+export function formatTripHeadline(
+  iso: string,
+  routeTitle: string,
+  direction: 'IDA' | 'VOLTA',
+): string {
+  const day =
+    localDateKey(iso) === localDateKey() ? 'Hoje' : formatLocalDate(iso);
+  const clock = formatClock(iso);
+  return `${day}, ${clock} • Rota ${routeTitle} (${direction})`;
 }
 
 export function formatDuration(startedAt: string, finishedAt: string): string {

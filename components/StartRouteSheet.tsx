@@ -24,12 +24,16 @@ type StartRouteSheetProps = {
   route: Route | null;
   visible: boolean;
   onClose: () => void;
+  initialDirection?: RouteDirection;
+  openIncompleteOnShow?: boolean;
 };
 
 export function StartRouteSheet({
   route,
   visible,
   onClose,
+  initialDirection,
+  openIncompleteOnShow = false,
 }: StartRouteSheetProps) {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -55,12 +59,16 @@ export function StartRouteSheet({
       return;
     }
     const next = allowedDirections(resolveOperationType(route));
-    setDirection(next[0]);
+    const preferred =
+      initialDirection && next.includes(initialDirection)
+        ? initialDirection
+        : next[0];
+    setDirection(preferred);
     setJustifyOpen(false);
-    setIncompleteOpen(false);
+    setIncompleteOpen(Boolean(openIncompleteOnShow && incompleteIda));
     setFreeText('');
     setCycleNote('');
-  }, [route?.id, visible]);
+  }, [route?.id, visible, initialDirection, openIncompleteOnShow, incompleteIda]);
 
   function beginTrip(justification?: CycleJustification) {
     if (!route) {
@@ -145,14 +153,14 @@ export function StartRouteSheet({
         <Pressable className="flex-1 justify-end bg-black/40" onPress={handleClose}>
           <Pressable
             onPress={() => undefined}
-            className="rounded-t-3xl bg-white px-5 pb-8 pt-5">
-            <Text className="text-lg font-bold text-slate-900">
+            className="rounded-t-3xl bg-surface px-5 pb-8 pt-5">
+            <Text className="text-xl font-bold text-ink">
               {route?.title}
             </Text>
-            <Text className="mt-1 text-sm text-slate-500">
+            <Text className="mt-1 text-sm text-ink-muted">
               Escolha o sentido e inicie o trajeto.
             </Text>
-            <Text className="mt-2 text-sm font-semibold text-brand-dark">
+            <Text className="mt-2 text-sm font-semibold text-primary-dark">
               {route
                 ? `${direction === 'IDA' ? 'Ida' : 'Volta'} · ${formatRouteTimeWindow(route, direction)}`
                 : ''}
@@ -191,7 +199,7 @@ export function StartRouteSheet({
             </View>
             <Pressable
               onPress={handleStart}
-              className="mt-5 items-center rounded-2xl bg-brand py-4">
+              className="mt-5 min-h-14 items-center justify-center rounded-button bg-primary py-4">
               <Text className="text-base font-bold text-white">
                 Iniciar Trajeto
               </Text>
