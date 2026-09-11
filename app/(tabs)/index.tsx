@@ -1,11 +1,12 @@
 import { Feather } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppAlert, type AppAlertState } from '@/components/AppAlert';
 import { HistoryTripCard } from '@/components/HistoryTripCard';
+import { RoutePickerSheet } from '@/components/RoutePickerSheet';
 import { StartRouteSheet } from '@/components/StartRouteSheet';
 import { cardShadow, palette } from '@/constants/Colors';
 import { formatLongDate } from '@/lib/localDate';
@@ -40,6 +41,8 @@ export default function HomeScreen() {
   const [sheetDirection, setSheetDirection] = useState<RouteDirection | undefined>();
   const [openIncomplete, setOpenIncomplete] = useState(false);
   const [alert, setAlert] = useState<AppAlertState>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const recentHistory = history.slice(0, RECENT_TRIPS);
 
   const pendingRoute = useMemo(
@@ -47,15 +50,55 @@ export default function HomeScreen() {
     [history, routes],
   );
 
+  const pickerItems = useMemo(
+    () =>
+      routes.map((route) => ({
+        route,
+        schoolName: schoolEntities[route.schoolId]?.name ?? 'Escola não encontrada',
+        pending: Boolean(incompleteIdaTrip(history, route.id)),
+      })),
+    [history, routes, schoolEntities],
+  );
+
+  const selectedRoute = useMemo(() => {
+    return (
+      routes.find((route) => route.id === selectedRouteId) ??
+      pendingRoute ??
+      routes[0] ??
+      null
+    );
+  }, [pendingRoute, routes, selectedRouteId]);
+
+  useEffect(() => {
+    if (routes.length === 0) {
+      setSelectedRouteId(null);
+      return;
+    }
+    if (!selectedRouteId || !routes.some((route) => route.id === selectedRouteId)) {
+      setSelectedRouteId(pendingRoute?.id ?? routes[0].id);
+    }
+  }, [pendingRoute, routes, selectedRouteId]);
+
   function openSheet(
     route: Route,
     direction?: RouteDirection,
     justify = false,
   ) {
+    setSelectedRouteId(route.id);
     setSheetDirection(direction);
     setOpenIncomplete(justify);
     setSheetRoute(route);
   }
+
+  const selectedSchoolName = selectedRoute
+    ? schoolEntities[selectedRoute.schoolId]?.name ?? 'Escola não encontrada'
+    : '';
+  const selectedDirections = selectedRoute
+    ? allowedDirections(resolveOperationType(selectedRoute))
+    : [];
+  const selectedReady = selectedRoute
+    ? !incompleteIdaTrip(history, selectedRoute.id)
+    : true;
 
   return (
     <View className="flex-1 bg-background">
@@ -133,82 +176,97 @@ export default function HomeScreen() {
               <Text className="mt-3 text-center text-base text-ink-muted">
                 Nenhuma rota cadastrada. Cadastre uma em Cadastros.
               </Text>
-            ) : (
-              routes.map((route) => {
-                const school = schoolEntities[route.schoolId];
-                const schoolName = school?.name ?? 'Escola não encontrada';
-                const directions = allowedDirections(resolveOperationType(route));
-                const ready = !incompleteIdaTrip(history, route.id);
-                return (
-                  <View
-                    key={route.id}
-                    style={cardShadow}
-                    className="mt-3 rounded-card border border-[#EEF2F6] bg-surface p-4">
-                    <View className="flex-row items-start">
-                      <View className="h-12 w-12 items-center justify-center rounded-2xl bg-pastel-route">
-                        <Feather name="truck" size={20} color={palette.iconRoute} />
-                      </View>
-                      <View className="ml-3 flex-1">
-                        <Text className="text-[18px] font-bold text-ink">
-                          {route.title}
-                        </Text>
-                        <Text className="mt-0.5 text-[13px] text-ink-muted">
-                          {schoolName}
-                        </Text>
-                      </View>
-                      <View className="flex-row items-center">
-                        <View
-                          className={`h-2 w-2 rounded-full ${
-                            ready ? 'bg-success' : 'bg-warning'
-                          }`}
-                        />
-                        <Text className="ml-1 text-[12px] font-semibold text-ink-secondary">
-                          {ready ? 'Pronto' : 'Pendente'}
-                        </Text>
-                      </View>
+            ) : selectedRoute ? (
+              <>
+                <Pressable
+                  onPress={() => setPickerOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Escolher rota"
+                  style={cardShadow}
+                  className="mt-3 flex-row items-center rounded-card border border-[#EEF2F6] bg-surface px-4 py-3">
+                  <View className="h-10 w-10 items-center justify-center rounded-2xl bg-pastel-route">
+                    <Feather name="map" size={18} color={palette.iconRoute} />
+                  </View>
+                  <View className="ml-3 flex-1">
+                    <Text className="text-[12px] font-semibold text-ink-muted">
+                      {routes.length} {routes.length === 1 ? 'rota cadastrada' : 'rotas cadastradas'}
+                    </Text>
+                    <Text className="text-[16px] font-bold text-ink">
+                      {selectedRoute.title}
+                    </Text>
+                  </View>
+                  <Text className="mr-1 text-[13px] font-semibold text-primary">
+                    Trocar
+                  </Text>
+                  <Feather name="chevron-down" size={18} color={palette.primary} />
+                </Pressable>
+                <View
+                  style={cardShadow}
+                  className="mt-3 rounded-card border border-[#EEF2F6] bg-surface p-4">
+                  <View className="flex-row items-start">
+                    <View className="h-12 w-12 items-center justify-center rounded-2xl bg-pastel-route">
+                      <Feather name="truck" size={20} color={palette.iconRoute} />
                     </View>
-                    <View className="mt-4 flex-row gap-2">
-                      {directions.includes('IDA') ? (
-                        <Pressable
-                          onPress={() => openSheet(route, 'IDA')}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Iniciar Ida da rota ${route.title}`}
-                          className="min-h-12 flex-1 flex-row items-center justify-center rounded-full bg-primary px-2">
-                          <Feather name="sun" size={16} color="#FFFFFF" />
-                          <Text className="ml-2 text-[12px] font-extrabold text-white">
-                            INICIAR IDA
-                          </Text>
-                        </Pressable>
-                      ) : null}
-                      {directions.includes('VOLTA') ? (
-                        <Pressable
-                          onPress={() => openSheet(route, 'VOLTA')}
-                          accessibilityRole="button"
-                          accessibilityLabel={`Iniciar Volta da rota ${route.title}`}
-                          className="min-h-12 flex-1 flex-row items-center justify-center rounded-full bg-primary-dark px-2">
-                          <Feather name="moon" size={16} color="#FFFFFF" />
-                          <Text className="ml-2 text-[12px] font-extrabold text-white">
-                            INICIAR VOLTA
-                          </Text>
-                        </Pressable>
-                      ) : null}
+                    <View className="ml-3 flex-1">
+                      <Text className="text-[18px] font-bold text-ink">
+                        {selectedRoute.title}
+                      </Text>
+                      <Text className="mt-0.5 text-[13px] text-ink-muted">
+                        {selectedSchoolName}
+                      </Text>
                     </View>
-                    <View className="mt-2 flex-row">
-                      {directions.includes('IDA') ? (
-                        <Text className="flex-1 text-center text-[12px] text-ink-muted">
-                          {formatRouteTimeWindow(route, 'IDA')}
-                        </Text>
-                      ) : null}
-                      {directions.includes('VOLTA') ? (
-                        <Text className="flex-1 text-center text-[12px] text-ink-muted">
-                          {formatRouteTimeWindow(route, 'VOLTA')}
-                        </Text>
-                      ) : null}
+                    <View className="flex-row items-center">
+                      <View
+                        className={`h-2 w-2 rounded-full ${
+                          selectedReady ? 'bg-success' : 'bg-warning'
+                        }`}
+                      />
+                      <Text className="ml-1 text-[12px] font-semibold text-ink-secondary">
+                        {selectedReady ? 'Pronto' : 'Pendente'}
+                      </Text>
                     </View>
                   </View>
-                );
-              })
-            )}
+                  <View className="mt-4 flex-row gap-2">
+                    {selectedDirections.includes('IDA') ? (
+                      <Pressable
+                        onPress={() => openSheet(selectedRoute, 'IDA')}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Iniciar Ida da rota ${selectedRoute.title}`}
+                        className="min-h-12 flex-1 flex-row items-center justify-center rounded-full bg-primary px-2">
+                        <Feather name="sun" size={16} color="#FFFFFF" />
+                        <Text className="ml-2 text-[12px] font-extrabold text-white">
+                          INICIAR IDA
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                    {selectedDirections.includes('VOLTA') ? (
+                      <Pressable
+                        onPress={() => openSheet(selectedRoute, 'VOLTA')}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Iniciar Volta da rota ${selectedRoute.title}`}
+                        className="min-h-12 flex-1 flex-row items-center justify-center rounded-full bg-primary-dark px-2">
+                        <Feather name="moon" size={16} color="#FFFFFF" />
+                        <Text className="ml-2 text-[12px] font-extrabold text-white">
+                          INICIAR VOLTA
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                  <View className="mt-2 flex-row">
+                    {selectedDirections.includes('IDA') ? (
+                      <Text className="flex-1 text-center text-[12px] text-ink-muted">
+                        {formatRouteTimeWindow(selectedRoute, 'IDA')}
+                      </Text>
+                    ) : null}
+                    {selectedDirections.includes('VOLTA') ? (
+                      <Text className="flex-1 text-center text-[12px] text-ink-muted">
+                        {formatRouteTimeWindow(selectedRoute, 'VOLTA')}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+              </>
+            ) : null}
 
             <View className="mt-8 flex-row items-center justify-between">
               <Text className="text-[13px] font-extrabold uppercase tracking-wide text-ink">
@@ -252,6 +310,13 @@ export default function HomeScreen() {
             )}
           </View>
       </ScrollView>
+      <RoutePickerSheet
+        visible={pickerOpen}
+        selectedId={selectedRoute?.id ?? null}
+        items={pickerItems}
+        onClose={() => setPickerOpen(false)}
+        onSelect={setSelectedRouteId}
+      />
       <StartRouteSheet
         route={sheetRoute}
         visible={sheetRoute !== null}
