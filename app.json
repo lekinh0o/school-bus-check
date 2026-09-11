@@ -35,7 +35,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "O School Bus Check usa sua localização para gravar o GPS do ponto de embarque."
+          "locationWhenInUsePermission": "O School Bus Check usa sua localização para marcar pontos no mapa e mostrar a distância até a parada durante a execução da rota."
         }
       ],
       [
@@ -45,7 +45,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
-      ]
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true
