@@ -20,6 +20,7 @@ import {
   resolveOperationType,
 } from '@/lib/operationType';
 import { formatRouteTimeWindow } from '@/lib/routeSchedule';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type StartRouteSheetProps = {
   route: Route | null;
@@ -38,6 +39,7 @@ export function StartRouteSheet({
 }: StartRouteSheetProps) {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const insets = useSafeAreaInsets();
   const activeExecution = useAppSelector(selectActiveExecution);
   const allStudents = useAppSelector(selectAllStudents);
   const hasIdaToday = useAppSelector((state) =>
@@ -213,7 +215,8 @@ export function StartRouteSheet({
       <Pressable className="flex-1 justify-end bg-black/40" onPress={handleClose}>
         <Pressable
           onPress={() => undefined}
-          className="rounded-t-3xl bg-surface px-5 pb-8 pt-5">
+          className="rounded-t-3xl bg-surface px-5 pt-5"
+          style={{ paddingBottom: 32 + insets.bottom }}>
           {incompleteOpen ? (
             <>
               <Text className="text-xl font-bold text-ink">

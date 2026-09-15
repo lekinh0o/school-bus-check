@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Modal, Pressable, Text, View } from 'react-native';
 
 import { palette } from '@/constants/Colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export function DevFeaturesSheet({
   visible,
@@ -10,6 +11,7 @@ export function DevFeaturesSheet({
   visible: boolean;
   onClose: () => void;
 }) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal
       visible={visible}
@@ -18,7 +20,9 @@ export function DevFeaturesSheet({
       onRequestClose={onClose}>
       <View className="flex-1 justify-end bg-black/40">
         <Pressable className="flex-1" onPress={onClose} />
-        <View className="rounded-t-3xl bg-surface px-5 pb-10 pt-4">
+        <View
+          className="rounded-t-3xl bg-surface px-5 pt-4"
+          style={{ paddingBottom: 40 + insets.bottom }}>
           <View className="mb-4 items-center">
             <View className="h-1 w-12 rounded-full bg-divider" />
           </View>

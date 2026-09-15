@@ -15,6 +15,7 @@ import { BusSeatMap } from '@/components/BusSeatMap';
 import { removeVehicle, selectAllVehicles } from '@/store/vehicleSlice';
 import { useAppDispatch, useAppSelector } from '@/store/store';
 import type { Vehicle } from '@/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type VehicleListModalProps = {
   visible: boolean;
@@ -34,6 +35,7 @@ export function VehicleListModal({
   const router = useRouter();
   const dispatch = useAppDispatch();
   const vehicles = useAppSelector(selectAllVehicles);
+  const insets = useSafeAreaInsets();
 
   function handleSelect(vehicleId: string) {
     onSelect(vehicleId);
@@ -75,7 +77,7 @@ export function VehicleListModal({
       onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <Pressable style={styles.dismissArea} onPress={onClose} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: 32 + insets.bottom }]}>
           <View className="mb-4 flex-row items-center justify-between">
             <Text className="text-xl font-bold text-slate-900">Veículos</Text>
             <Pressable
