@@ -33,6 +33,7 @@ import {
   isValidPhoneBr,
   parsePositiveInt,
 } from '@/lib/inputMasks';
+import { optionalPhones, optionalText } from '@/lib/optionalFields';
 import { pickLocalImage } from '@/lib/pickImage';
 
 function withId(ids: string[], id: string): string[] {
@@ -90,6 +91,7 @@ export default function StudentFormScreen() {
   const vehicles = useAppSelector(selectAllVehicles);
 
   const [name, setName] = useState('');
+  const [enrollmentCode, setEnrollmentCode] = useState('');
   const [ageInput, setAgeInput] = useState('');
   const [responsible, setResponsible] = useState('');
   const [phone1, setPhone1] = useState('');
@@ -107,11 +109,12 @@ export default function StudentFormScreen() {
       return;
     }
     setName(existing.name);
-    setAgeInput(String(existing.age));
-    setResponsible(existing.responsible);
-    setPhone1(formatPhoneBr(existing.contactPhones[0] ?? ''));
-    setPhone2(formatPhoneBr(existing.contactPhones[1] ?? ''));
-    setGrade(existing.grade);
+    setEnrollmentCode(existing.enrollmentCode ?? '');
+    setAgeInput(existing.age != null ? String(existing.age) : '');
+    setResponsible(existing.responsible ?? '');
+    setPhone1(formatPhoneBr(existing.contactPhones?.[0] ?? ''));
+    setPhone2(formatPhoneBr(existing.contactPhones?.[1] ?? ''));
+    setGrade(existing.grade ?? '');
     setSchoolId(existing.schoolId);
     setRouteId(existing.routeId);
     setBoardingPoint(existing.boardingPoint);
@@ -134,41 +137,50 @@ export default function StudentFormScreen() {
 
   const pointName = boardingPoint.trim();
   const age = parsePositiveInt(ageInput);
+  const ageFilled = ageInput.trim().length > 0;
+  const phone1Value = optionalText(phone1);
+  const phone2Value = optionalText(phone2);
+  const selectedSchool = schools.find((item) => item.id === schoolId);
 
   const canSubmit =
     name.trim().length > 0 &&
-    age !== null &&
-    responsible.trim().length > 0 &&
-    isValidPhoneBr(phone1) &&
-    isValidPhoneBr(phone2) &&
-    grade.trim().length > 0 &&
-    schoolId.length > 0 &&
-    routeId.length > 0 &&
+    (!ageFilled || age !== null) &&
+    (!phone1Value || isValidPhoneBr(phone1)) &&
+    (!phone2Value || isValidPhoneBr(phone2)) &&
+    Boolean(selectedSchool) &&
+    Boolean(selectedRoute && selectedRoute.schoolId === schoolId) &&
     pointName.length > 0 &&
-    vehicleId.length > 0 &&
+    Boolean(selectedVehicle) &&
     seatNumber !== null;
 
   const checklist = [
     { label: 'Nome', done: name.trim().length > 0 },
-    { label: 'Idade', done: age !== null },
-    { label: 'Responsável', done: responsible.trim().length > 0 },
-    { label: 'Telefone 1 com DDD', done: isValidPhoneBr(phone1) },
-    { label: 'Telefone 2 com DDD', done: isValidPhoneBr(phone2) },
-    { label: 'Série', done: grade.trim().length > 0 },
-    { label: 'Escola', done: schoolId.length > 0 },
-    { label: 'Rota', done: routeId.length > 0 },
+    { label: 'Escola', done: Boolean(selectedSchool) },
+    { label: 'Rota', done: Boolean(selectedRoute && selectedRoute.schoolId === schoolId) },
     { label: 'Ponto de embarque', done: pointName.length > 0 },
-    { label: 'Veículo', done: vehicleId.length > 0 },
+    { label: 'Veículo', done: Boolean(selectedVehicle) },
     { label: 'Assento', done: seatNumber !== null },
+    ...(ageFilled && age === null ? [{ label: 'Idade', done: false }] : []),
+    ...(phone1Value && !isValidPhoneBr(phone1)
+      ? [{ label: 'Telefone 1 com DDD', done: false }]
+      : []),
+    ...(phone2Value && !isValidPhoneBr(phone2)
+      ? [{ label: 'Telefone 2 com DDD', done: false }]
+      : []),
   ];
 
   const isDirty = isCreate
-    ? name.length > 0 || responsible.length > 0 || phone1.length > 0
+    ? name.length > 0 ||
+      enrollmentCode.length > 0 ||
+      responsible.length > 0 ||
+      phone1.length > 0
     : Boolean(
         existing &&
           (name !== existing.name ||
-            ageInput !== String(existing.age) ||
-            responsible !== existing.responsible ||
+            optionalText(enrollmentCode) !==
+              optionalText(existing.enrollmentCode) ||
+            ageInput !== (existing.age != null ? String(existing.age) : '') ||
+            optionalText(responsible) !== optionalText(existing.responsible) ||
             schoolId !== existing.schoolId ||
             routeId !== existing.routeId ||
             seatNumber !== existing.seatNumber),
@@ -208,22 +220,27 @@ export default function StudentFormScreen() {
   }
 
   function handleSubmit() {
-    if (!canSubmit || seatNumber === null || age === null) {
+    if (!canSubmit || seatNumber === null) {
       return;
     }
 
-    const extraPhones = existing?.contactPhones.slice(2) ?? [];
+    const extraPhones = existing?.contactPhones?.slice(2) ?? [];
     const fields = {
       name: name.trim(),
-      age,
-      responsible: responsible.trim(),
-      contactPhones: [formatPhoneBr(phone1), formatPhoneBr(phone2), ...extraPhones],
+      age: age ?? undefined,
+      responsible: optionalText(responsible),
+      contactPhones: optionalPhones([
+        phone1Value ? formatPhoneBr(phone1) : undefined,
+        phone2Value ? formatPhoneBr(phone2) : undefined,
+        ...extraPhones,
+      ]),
       schoolId,
-      grade: grade.trim(),
+      grade: optionalText(grade),
       routeId,
       boardingPoint: pointName,
       vehicleId,
       seatNumber,
+      enrollmentCode: optionalText(enrollmentCode),
       photoUri,
     };
 
@@ -359,6 +376,15 @@ export default function StudentFormScreen() {
             />
           </View>
         </View>
+
+        <FieldLabel>Carteirinha / Matrícula</FieldLabel>
+        <TextInput
+          value={enrollmentCode}
+          onChangeText={setEnrollmentCode}
+          placeholder="Opcional"
+          placeholderTextColor="#94A3B8"
+          className="mb-3 rounded-xl border border-slate-200 bg-white px-3 py-3 text-base text-slate-900"
+        />
 
         <FieldLabel>Responsável</FieldLabel>
         <TextInput

@@ -286,12 +286,78 @@ const migrations: MigrationManifest = {
       },
     };
   },
+  8: (state: PersistedState) => {
+    if (!state || typeof state !== 'object') {
+      return state;
+    }
+
+    const root = state as PersistedState & {
+      schools?: PersistedEntitySlice;
+      students?: PersistedEntitySlice;
+    };
+
+    function stripEmptyDescriptiveFields(
+      entity: Record<string, unknown>,
+      keys: string[],
+    ): Record<string, unknown> {
+      const next = { ...entity };
+      for (const key of keys) {
+        if (typeof next[key] === 'string' && next[key].trim() === '') {
+          delete next[key];
+        }
+      }
+      if (Array.isArray(next.contactPhones)) {
+        const phones = next.contactPhones.filter(
+          (item) => typeof item === 'string' && item.trim().length > 0,
+        );
+        if (phones.length === 0) {
+          delete next.contactPhones;
+        } else {
+          next.contactPhones = phones;
+        }
+      }
+      return next;
+    }
+
+    function mapEntities(
+      slice: PersistedEntitySlice | undefined,
+      keys: string[],
+    ): PersistedEntitySlice | undefined {
+      if (!slice?.entities) {
+        return slice;
+      }
+      const entities = { ...slice.entities };
+      for (const id of Object.keys(entities)) {
+        const entity = entities[id];
+        if (!entity) {
+          continue;
+        }
+        entities[id] = stripEmptyDescriptiveFields(entity, keys);
+      }
+      return { ...slice, entities };
+    }
+
+    return {
+      ...root,
+      schools: mapEntities(root.schools, [
+        'address',
+        'principal',
+        'phone',
+        'registry',
+      ]),
+      students: mapEntities(root.students, [
+        'responsible',
+        'grade',
+        'enrollmentCode',
+      ]),
+    };
+  },
 };
 
 const persistConfig = {
   key: 'root',
   storage,
-  version: 7,
+  version: 8,
   timeout: 0,
   migrate: createMigrate(migrations, { debug: false }),
 };
