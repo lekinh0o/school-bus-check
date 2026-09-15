@@ -91,7 +91,16 @@ export default function StudentsListScreen() {
                   <Text className="text-lg font-bold text-slate-900">
                     {student.name}
                   </Text>
-                  <Text className="mt-1 text-sm text-slate-500">{student.grade}</Text>
+                  {student.enrollmentCode ? (
+                    <Text className="mt-1 text-sm text-slate-600">
+                      {student.enrollmentCode}
+                    </Text>
+                  ) : null}
+                  {student.grade ? (
+                    <Text className="mt-1 text-sm text-slate-500">
+                      {student.grade}
+                    </Text>
+                  ) : null}
                   <Text className="mt-1 text-sm text-slate-600">
                     {school?.name ?? 'Escola não encontrada'}
                   </Text>

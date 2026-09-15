@@ -18,6 +18,7 @@ import { BoardingPointMapPicker } from '@/components/BoardingPointMapPicker';
 import { useLeaveConfirmation } from '@/hooks/useLeaveConfirmation';
 import { entityCoords, type MapCoords } from '@/lib/geocode';
 import { formatPhoneBr, isValidPhoneBr } from '@/lib/inputMasks';
+import { optionalText } from '@/lib/optionalFields';
 import { pickLocalImage } from '@/lib/pickImage';
 
 export default function SchoolFormScreen() {
@@ -31,6 +32,7 @@ export default function SchoolFormScreen() {
   );
 
   const [name, setName] = useState('');
+  const [registry, setRegistry] = useState('');
   const [address, setAddress] = useState('');
   const [principal, setPrincipal] = useState('');
   const [phone, setPhone] = useState('');
@@ -43,37 +45,39 @@ export default function SchoolFormScreen() {
       return;
     }
     setName(existing.name);
-    setAddress(existing.address);
-    setPrincipal(existing.principal);
-    setPhone(formatPhoneBr(existing.phone));
+    setRegistry(existing.registry ?? '');
+    setAddress(existing.address ?? '');
+    setPrincipal(existing.principal ?? '');
+    setPhone(formatPhoneBr(existing.phone ?? ''));
     setPhotoUri(existing.photoUri);
     setCoords(entityCoords(existing));
   }, [existing]);
 
+  const phoneValue = optionalText(phone);
   const canSubmit =
-    name.trim().length > 0 &&
-    address.trim().length > 0 &&
-    principal.trim().length > 0 &&
-    isValidPhoneBr(phone);
+    name.trim().length > 0 && (!phoneValue || isValidPhoneBr(phone));
 
   const checklist = [
     { label: 'Nome', done: name.trim().length > 0 },
-    { label: 'Endereço', done: address.trim().length > 0 },
-    { label: 'Diretor(a)', done: principal.trim().length > 0 },
-    { label: 'Telefone com DDD', done: isValidPhoneBr(phone) },
+    ...(phoneValue && !isValidPhoneBr(phone)
+      ? [{ label: 'Telefone com DDD', done: false }]
+      : []),
   ];
 
   const isDirty = isCreate
     ? name.length > 0 ||
+      registry.length > 0 ||
       address.length > 0 ||
       principal.length > 0 ||
       phone.length > 0
     : Boolean(
         existing &&
           (name !== existing.name ||
-            address !== existing.address ||
-            principal !== existing.principal ||
-            formatPhoneBr(phone) !== formatPhoneBr(existing.phone)),
+            optionalText(registry) !== optionalText(existing.registry) ||
+            optionalText(address) !== optionalText(existing.address) ||
+            optionalText(principal) !== optionalText(existing.principal) ||
+            optionalText(formatPhoneBr(phone)) !==
+              optionalText(existing.phone ? formatPhoneBr(existing.phone) : '')),
       );
 
   const { allowNextLeave } = useLeaveConfirmation({
@@ -96,9 +100,10 @@ export default function SchoolFormScreen() {
 
     const fields = {
       name: name.trim(),
-      address: address.trim(),
-      principal: principal.trim(),
-      phone: formatPhoneBr(phone),
+      registry: optionalText(registry),
+      address: optionalText(address),
+      principal: optionalText(principal),
+      phone: phoneValue ? formatPhoneBr(phone) : undefined,
       photoUri,
       ...(coords
         ? { latitude: coords.latitude, longitude: coords.longitude }
@@ -162,6 +167,17 @@ export default function SchoolFormScreen() {
           value={name}
           onChangeText={setName}
           placeholder="Escola Municipal..."
+          placeholderTextColor="#94A3B8"
+          className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
+        />
+
+        <Text className="mt-5 mb-2 text-sm font-semibold text-slate-700">
+          Registro
+        </Text>
+        <TextInput
+          value={registry}
+          onChangeText={setRegistry}
+          placeholder="Opcional"
           placeholderTextColor="#94A3B8"
           className="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-lg text-slate-900"
         />

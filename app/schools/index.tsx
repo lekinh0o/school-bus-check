@@ -63,9 +63,16 @@ export default function SchoolsListScreen() {
               )}
               <View className="flex-1 pr-2">
                 <Text className="text-lg font-bold text-slate-900">{school.name}</Text>
-                <Text className="mt-1 text-sm text-slate-500">
-                  Diretor(a): {school.principal}
-                </Text>
+                {school.registry ? (
+                  <Text className="mt-1 text-sm text-slate-600">
+                    Registro: {school.registry}
+                  </Text>
+                ) : null}
+                {school.principal ? (
+                  <Text className="mt-1 text-sm text-slate-500">
+                    Diretor(a): {school.principal}
+                  </Text>
+                ) : null}
                 <Text className="mt-2 text-sm font-semibold text-brand">
                   {school.studentIds.length} Alunos | {school.routeIds.length} Rotas
                 </Text>

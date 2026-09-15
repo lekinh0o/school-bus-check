@@ -499,7 +499,11 @@ export default function RouteFormScreen() {
                   }`}>
                   {school.name}
                 </Text>
-                <Text className="mt-1 text-sm text-slate-500">{school.address}</Text>
+                {school.address ? (
+                  <Text className="mt-1 text-sm text-slate-500">
+                    {school.address}
+                  </Text>
+                ) : null}
               </Pressable>
             );
           })

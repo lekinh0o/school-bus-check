@@ -15,9 +15,10 @@ export type Vehicle = {
 export type School = {
   id: string;
   name: string;
-  address: string;
-  principal: string;
-  phone: string;
+  address?: string;
+  principal?: string;
+  phone?: string;
+  registry?: string;
   studentIds: string[];
   routeIds: string[];
   photoUri?: string;
@@ -60,14 +61,15 @@ export type Route = {
 export type Student = {
   id: string;
   name: string;
-  age: number;
-  responsible: string;
-  contactPhones: string[];
+  age?: number;
+  responsible?: string;
+  contactPhones?: string[];
   schoolId: string;
-  grade: string;
+  grade?: string;
   routeId: string;
   boardingPoint: string;
   vehicleId: string;
   seatNumber: number;
+  enrollmentCode?: string;
   photoUri?: string;
 };
