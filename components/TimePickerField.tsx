@@ -4,6 +4,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { palette } from '@/constants/Colors';
 import { isValidHhMm } from '@/lib/inputMasks';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HOURS = Array.from({ length: 24 }, (_, hour) =>
   String(hour).padStart(2, '0'),
@@ -33,6 +34,7 @@ export function TimePickerField({
   onChange,
   placeholder = 'Escolher horário',
 }: TimePickerFieldProps) {
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const initial = parseParts(value);
   const [hour, setHour] = useState(initial.hour);
@@ -65,7 +67,9 @@ export function TimePickerField({
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <View className="flex-1 justify-end bg-black/50">
           <Pressable className="flex-1" onPress={() => setOpen(false)} />
-          <View className="rounded-t-3xl bg-white px-5 pb-8 pt-4">
+          <View
+            className="rounded-t-3xl bg-white px-5 pt-4"
+            style={{ paddingBottom: 32 + insets.bottom }}>
             <Text className="mb-3 text-lg font-bold text-ink">{label}</Text>
             <View className="flex-row gap-3">
               <Wheel

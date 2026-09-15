@@ -12,6 +12,7 @@ import {
 
 import { palette } from '@/constants/Colors';
 import type { Route } from '@/types';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type RoutePickerItem = {
   route: Route;
@@ -35,6 +36,7 @@ export function RoutePickerSheet({
   onSelect,
 }: RoutePickerSheetProps) {
   const [query, setQuery] = useState('');
+  const insets = useSafeAreaInsets();
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -69,7 +71,7 @@ export function RoutePickerSheet({
       onRequestClose={handleClose}>
       <View style={styles.backdrop}>
         <Pressable style={styles.dismissArea} onPress={handleClose} />
-        <View style={styles.sheet}>
+        <View style={[styles.sheet, { paddingBottom: 32 + insets.bottom }]}>
           <View className="mb-3 flex-row items-center justify-between">
             <Text className="text-xl font-bold text-ink">Escolher rota</Text>
             <Pressable

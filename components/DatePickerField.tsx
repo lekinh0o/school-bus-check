@@ -10,6 +10,7 @@ import {
   isValidDateKey,
   localDateKey,
 } from '@/lib/localDate';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MONTHS = [
   'Jan',
@@ -51,6 +52,7 @@ export function DatePickerField({
   minYear,
   maxYear,
 }: DatePickerFieldProps) {
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const initial = parseParts(value);
   const [year, setYear] = useState(initial.year);
@@ -93,7 +95,9 @@ export function DatePickerField({
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <View className="flex-1 justify-end bg-black/50">
           <Pressable className="flex-1" onPress={() => setOpen(false)} />
-          <View className="rounded-t-3xl bg-white px-5 pb-8 pt-4">
+          <View
+            className="rounded-t-3xl bg-white px-5 pt-4"
+            style={{ paddingBottom: 32 + insets.bottom }}>
             <Text className="mb-3 text-lg font-bold text-ink">{label}</Text>
             <View className="flex-row gap-2">
               <Wheel

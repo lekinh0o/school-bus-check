@@ -1,6 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
 import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { removeStudent, selectAllStudents } from '@/store/studentSlice';
 import { updateSchool } from '@/store/schoolSlice';
@@ -14,6 +15,7 @@ export default function StudentsListScreen() {
   const students = useAppSelector(selectAllStudents);
   const schoolEntities = useAppSelector((state) => state.schools.entities);
   const routeEntities = useAppSelector((state) => state.routes.entities);
+  const insets = useSafeAreaInsets();
 
   function handleCreate() {
     router.push('/students/new' as Href);
@@ -118,7 +120,8 @@ export default function StudentsListScreen() {
 
       <Pressable
         onPress={handleCreate}
-        className="absolute bottom-6 left-4 right-4 items-center rounded-2xl bg-brand py-4 shadow-lg">
+        className="absolute left-4 right-4 items-center rounded-2xl bg-brand py-4 shadow-lg"
+        style={{ bottom: 24 + insets.bottom }}>
         <Text className="text-base font-bold text-white">Adicionar Novo Aluno</Text>
       </Pressable>
     </View>

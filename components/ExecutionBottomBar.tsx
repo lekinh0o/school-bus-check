@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ExecutionBottomBarProps = {
   canGoPrevious: boolean;
@@ -23,6 +24,7 @@ export function ExecutionBottomBar({
   onComplete,
   onSkip,
 }: ExecutionBottomBarProps) {
+  const insets = useSafeAreaInsets();
   const completeEnabled = lastPoint ? canFinish : pointComplete;
   const completeLabel = lastPoint ? 'Encerrar rota' : 'Concluir';
   const blockHint =
@@ -33,7 +35,9 @@ export function ExecutionBottomBar({
         : null;
 
   return (
-    <View className="border-t border-[#EEF2F6] bg-surface px-3 pb-3 pt-2">
+    <View
+      className="border-t border-[#EEF2F6] bg-surface px-3 pt-2"
+      style={{ paddingBottom: 12 + insets.bottom }}>
       {blockHint ? (
         <Text className="mb-2 text-center text-sm font-semibold text-warning">
           {blockHint}

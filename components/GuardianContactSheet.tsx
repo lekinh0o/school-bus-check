@@ -3,6 +3,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 
 import { formatPhoneBr } from '@/lib/inputMasks';
 import { openPhoneCall, openWhatsApp, usablePhones } from '@/lib/contactGuardian';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type GuardianContactSheetProps = {
   phones: string[];
@@ -17,6 +18,7 @@ export function GuardianContactSheet({
 }: GuardianContactSheetProps) {
   const valid = usablePhones(phones);
   const [picked, setPicked] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (visible) {
@@ -36,7 +38,8 @@ export function GuardianContactSheet({
       <Pressable className="flex-1 justify-end bg-black/40" onPress={handleClose}>
         <Pressable
           onPress={() => undefined}
-          className="rounded-t-3xl bg-white px-5 pb-8 pt-5">
+          className="rounded-t-3xl bg-white px-5 pt-5"
+          style={{ paddingBottom: 32 + insets.bottom }}>
           <Text className="text-lg font-bold text-slate-900">Contato do responsável</Text>
           {!selected ? (
             <>

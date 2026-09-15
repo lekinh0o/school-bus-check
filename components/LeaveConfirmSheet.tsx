@@ -1,4 +1,5 @@
 import { Modal, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type LeaveConfirmSheetProps = {
   visible: boolean;
@@ -17,6 +18,7 @@ export function LeaveConfirmSheet({
   onStay,
   onLeave,
 }: LeaveConfirmSheetProps) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal
       visible={visible}
@@ -26,7 +28,8 @@ export function LeaveConfirmSheet({
       <Pressable className="flex-1 justify-end bg-black/40" onPress={onStay}>
         <Pressable
           onPress={() => undefined}
-          className="rounded-t-3xl bg-surface px-5 pb-8 pt-5">
+          className="rounded-t-3xl bg-surface px-5 pt-5"
+          style={{ paddingBottom: 32 + insets.bottom }}>
           <Text className="text-xl font-bold text-ink">{title}</Text>
           <Text className="mt-2 text-sm text-ink-muted">{message}</Text>
           <Pressable
