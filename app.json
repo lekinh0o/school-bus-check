@@ -8,9 +8,13 @@
     "scheme": "schoolbuscheck",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["waze", "comgooglemaps"]
+      }
     },
     "android": {
+      "package": "com.lekinh0o.schoolbuscheck",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -26,6 +30,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugins/withOutgoingMapQueries.js",
       [
         "expo-image-picker",
         {
