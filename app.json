@@ -37,7 +37,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "O School Bus Check precisa acessar suas fotos para cadastrar o veículo."
+          "photosPermission": "O School Bus Check precisa acessar suas fotos para cadastrar veículo, escola, rota e aluno.",
+          "cameraPermission": "O School Bus Check precisa da câmera para fotografar veículo, escola, responsável e aluno."
         }
       ],
       [
