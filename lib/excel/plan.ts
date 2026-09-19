@@ -15,66 +15,89 @@ import {
   validPlate,
 } from './normalize';
 import type {
-  EntityTotals,
   ImportPlan,
   ImportSnapshot,
   PlannedRow,
+  ReviewOverlay,
   RowStatus,
 } from './types';
-import { parseWorkbookBuffer, type ParsedSheet } from './workbook';
+import { emptyOverlay, rowKey } from './types';
+import {
+  applyOverlayToWorkbook,
+  hydrateRows,
+  isIgnored,
+  selectedRef,
+  tally,
+} from './overlay';
+import { parseWorkbookBuffer, type ParsedSheet, type ParsedWorkbook } from './workbook';
 
 type IndexedSchool = School & { _pending?: boolean };
 type IndexedRoute = Route & { _pending?: boolean };
 type IndexedVehicle = Vehicle & { _pending?: boolean };
 
-function emptyTotals(): EntityTotals {
-  return {
-    rows: 0,
-    valid: 0,
-    invalid: 0,
-    news: 0,
-    updates: 0,
-    duplicates: 0,
-    missingRefs: 0,
-    errors: 0,
-    conflicts: 0,
-  };
-}
-
-function tally(rows: PlannedRow[]): EntityTotals {
-  const totals = emptyTotals();
-  totals.rows = rows.length;
-  for (const row of rows) {
-    if (row.status === 'new') {
-      totals.news += 1;
-      totals.valid += 1;
-    } else if (row.status === 'update') {
-      totals.updates += 1;
-      totals.valid += 1;
-    } else {
-      totals.invalid += 1;
-      if (row.status === 'duplicate') {
-        totals.duplicates += 1;
-      } else if (row.status === 'conflict') {
-        totals.conflicts += 1;
-      } else if (row.status === 'missing_ref') {
-        totals.missingRefs += 1;
-      } else {
-        totals.errors += 1;
-      }
-    }
-  }
-  return totals;
-}
-
 function fail(
+  kind: ExcelEntityKind,
   sheet: string,
   rowNumber: number,
   status: RowStatus,
   message: string,
   field?: string,
 ): PlannedRow {
-  return { sheet, rowNumber, status, message, field };
+  const validation =
+    status === 'new' || status === 'update'
+      ? 'valid'
+      : status === 'conflict' || status === 'duplicate'
+        ? 'conflict'
+        : 'error';
+  return {
+    kind,
+    sheet,
+    rowNumber,
+    rowKey: rowKey(kind, rowNumber),
+    operation: 'none',
+    validation,
+    decision: 'include',
+    corrected: false,
+    issues: [
+      {
+        code: status,
+        severity: validation === 'conflict' ? 'conflict' : 'error',
+        field,
+        message,
+      },
+    ],
+    originalValues: {},
+    effectiveValues: {},
+    corrections: [],
+    status,
+    field,
+    message,
+  };
+}
+
+function ok(
+  kind: ExcelEntityKind,
+  sheet: string,
+  rowNumber: number,
+  status: Extract<RowStatus, 'new' | 'update'>,
+  extra: Pick<PlannedRow, 'create' | 'changes' | 'entityId'>,
+): PlannedRow {
+  return {
+    kind,
+    sheet,
+    rowNumber,
+    rowKey: rowKey(kind, rowNumber),
+    operation: status === 'new' ? 'create' : 'update',
+    validation: 'valid',
+    decision: 'include',
+    corrected: false,
+    issues: [],
+    originalValues: {},
+    effectiveValues: {},
+    corrections: [],
+    status,
+    ...extra,
+  };
 }
 
 function findSchoolsByRegistry(
@@ -91,7 +114,15 @@ function findSchoolsByName(schools: IndexedSchool[], name: string): IndexedSchoo
 function resolveSchool(
   schools: IndexedSchool[],
   cell: string,
+  selectedId?: string,
 ): { school?: IndexedSchool; status?: RowStatus; message?: string } {
+  if (selectedId) {
+    const selected = schools.find((item) => item.id === selectedId);
+    if (selected) {
+      return { school: selected };
+    }
+    return { status: 'missing_ref', message: 'Escola não encontrada' };
+  }
   const value = exactText(cell);
   if (!value) {
     return { status: 'missing_ref', message: 'Escola não informada' };
@@ -117,7 +148,15 @@ function resolveRoute(
   routes: IndexedRoute[],
   title: string,
   schoolId: string,
+  selectedId?: string,
 ): { route?: IndexedRoute; status?: RowStatus; message?: string } {
+  if (selectedId) {
+    const selected = routes.find((item) => item.id === selectedId);
+    if (selected) {
+      return { route: selected };
+    }
+    return { status: 'missing_ref', message: 'Rota não encontrada' };
+  }
   const name = exactText(title);
   if (!name) {
     return { status: 'missing_ref', message: 'Rota não informada' };
@@ -137,7 +176,15 @@ function resolveRoute(
 function resolveVehicle(
   vehicles: IndexedVehicle[],
   plateCell: string,
+  selectedId?: string,
 ): { vehicle?: IndexedVehicle; status?: RowStatus; message?: string } {
+  if (selectedId) {
+    const selected = vehicles.find((item) => item.id === selectedId);
+    if (selected) {
+      return { vehicle: selected };
+    }
+    return { status: 'missing_ref', message: 'Veículo não encontrado' };
+  }
   const plate = validPlate(plateCell);
   if (!plate) {
     return { status: 'error', message: 'Placa inválida' };
@@ -155,7 +202,9 @@ function resolveVehicle(
 function planVehicles(
   sheet: ParsedSheet | undefined,
   vehicles: IndexedVehicle[],
+  overlay: ReviewOverlay,
 ): { rows: PlannedRow[]; next: IndexedVehicle[] } {
+  const kind = 'vehicles' as const;
   const title = SHEET_TITLES.vehicles;
   if (!sheet) {
     return { rows: [], next: vehicles };
@@ -166,6 +215,10 @@ function planVehicles(
   const parsedPlates: Array<string | undefined> = [];
 
   for (const row of sheet.rows) {
+    if (isIgnored(overlay, kind, row.rowNumber)) {
+      parsedPlates.push(validPlate(row.values.plate ?? ''));
+      continue;
+    }
     const plate = validPlate(row.values.plate ?? '');
     parsedPlates.push(plate);
     if (plate) {
@@ -176,16 +229,16 @@ function planVehicles(
   sheet.rows.forEach((row, index) => {
     const plate = parsedPlates[index];
     if (!exactText(row.values.plate)) {
-      rows.push(fail(title, row.rowNumber, 'error', 'Placa é obrigatória', 'Placa'));
+      rows.push(fail(kind, title, row.rowNumber, 'error', 'Placa é obrigatória', 'Placa'));
       return;
     }
     if (!plate) {
-      rows.push(fail(title, row.rowNumber, 'error', 'Placa inválida', 'Placa'));
+      rows.push(fail(kind, title, row.rowNumber, 'error', 'Placa inválida', 'Placa'));
       return;
     }
     if ((plateCounts.get(plate) ?? 0) > 1) {
       rows.push(
-        fail(title, row.rowNumber, 'duplicate', 'Placa duplicada no arquivo', 'Placa'),
+        fail(kind, title, row.rowNumber, 'duplicate', 'Placa duplicada no arquivo', 'Placa'),
       );
       return;
     }
@@ -193,7 +246,7 @@ function planVehicles(
     const matches = next.filter((item) => item.plate === plate);
     if (matches.length > 1) {
       rows.push(
-        fail(title, row.rowNumber, 'conflict', 'Placa ambígua no cadastro', 'Placa'),
+        fail(kind, title, row.rowNumber, 'conflict', 'Placa ambígua no cadastro', 'Placa'),
       );
       return;
     }
@@ -205,13 +258,14 @@ function planVehicles(
     if (matches.length === 0) {
       if (!responsible) {
         rows.push(
-          fail(title, row.rowNumber, 'error', 'Responsável é obrigatório', 'Responsável'),
+          fail(kind, title, row.rowNumber, 'error', 'Responsável é obrigatório', 'Responsável'),
         );
         return;
       }
       if (seats == null) {
         rows.push(
           fail(
+            kind,
             title,
             row.rowNumber,
             'error',
@@ -232,17 +286,18 @@ function planVehicles(
         })),
         _pending: true,
       };
-      next.push(created);
-      rows.push({
-        sheet: title,
-        rowNumber: row.rowNumber,
-        status: 'new',
-        create: {
-          plate,
-          responsible,
-          totalSeats: seats,
-        },
-      });
+      if (!isIgnored(overlay, kind, row.rowNumber)) {
+        next.push(created);
+      }
+      rows.push(
+        ok(kind, title, row.rowNumber, 'new', {
+          create: {
+            plate,
+            responsible,
+            totalSeats: seats,
+          },
+        }),
+      );
       return;
     }
 
@@ -255,6 +310,7 @@ function planVehicles(
       if (seats == null) {
         rows.push(
           fail(
+            kind,
             title,
             row.rowNumber,
             'error',
@@ -266,19 +322,20 @@ function planVehicles(
       }
       changes.totalSeats = seats;
     }
-    if (typeof changes.responsible === 'string') {
-      existing.responsible = changes.responsible;
+    if (!isIgnored(overlay, kind, row.rowNumber)) {
+      if (typeof changes.responsible === 'string') {
+        existing.responsible = changes.responsible;
+      }
+      if (typeof changes.totalSeats === 'number') {
+        existing.totalSeats = changes.totalSeats;
+      }
     }
-    if (typeof changes.totalSeats === 'number') {
-      existing.totalSeats = changes.totalSeats;
-    }
-    rows.push({
-      sheet: title,
-      rowNumber: row.rowNumber,
-      status: 'update',
-      entityId: existing.id,
-      changes,
-    });
+    rows.push(
+      ok(kind, title, row.rowNumber, 'update', {
+        entityId: existing.id,
+        changes,
+      }),
+    );
   });
 
   return { rows, next };
@@ -287,7 +344,9 @@ function planVehicles(
 function planSchools(
   sheet: ParsedSheet | undefined,
   schools: IndexedSchool[],
+  overlay: ReviewOverlay,
 ): { rows: PlannedRow[]; next: IndexedSchool[] } {
+  const kind = 'schools' as const;
   const title = SHEET_TITLES.schools;
   if (!sheet) {
     return { rows: [], next: schools };
@@ -297,6 +356,9 @@ function planSchools(
   const registryCounts = new Map<string, number>();
 
   for (const row of sheet.rows) {
+    if (isIgnored(overlay, kind, row.rowNumber)) {
+      continue;
+    }
     const registry = businessCode(row.values.registry);
     if (registry) {
       registryCounts.set(registry, (registryCounts.get(registry) ?? 0) + 1);
@@ -314,7 +376,7 @@ function planSchools(
       phone = validPhone(phoneRaw);
       if (!phone) {
         rows.push(
-          fail(title, row.rowNumber, 'error', 'Telefone inválido', 'Telefone'),
+          fail(kind, title, row.rowNumber, 'error', 'Telefone inválido', 'Telefone'),
         );
         continue;
       }
@@ -326,7 +388,7 @@ function planSchools(
     if (latRaw) {
       latitude = parseOptionalNumber(latRaw);
       if (latitude === undefined || Number.isNaN(latitude)) {
-        rows.push(fail(title, row.rowNumber, 'error', 'Latitude inválida', 'Latitude'));
+        rows.push(fail(kind, title, row.rowNumber, 'error', 'Latitude inválida', 'Latitude'));
         continue;
       }
     }
@@ -334,7 +396,7 @@ function planSchools(
       longitude = parseOptionalNumber(lngRaw);
       if (longitude === undefined || Number.isNaN(longitude)) {
         rows.push(
-          fail(title, row.rowNumber, 'error', 'Longitude inválida', 'Longitude'),
+          fail(kind, title, row.rowNumber, 'error', 'Longitude inválida', 'Longitude'),
         );
         continue;
       }
@@ -342,7 +404,7 @@ function planSchools(
 
     if (registry && (registryCounts.get(registry) ?? 0) > 1) {
       rows.push(
-        fail(title, row.rowNumber, 'duplicate', 'Registro duplicado no arquivo', 'Registro'),
+        fail(kind, title, row.rowNumber, 'duplicate', 'Registro duplicado no arquivo', 'Registro'),
       );
       continue;
     }
@@ -352,7 +414,7 @@ function planSchools(
       matches = findSchoolsByRegistry(next, registry);
       if (matches.length > 1) {
         rows.push(
-          fail(title, row.rowNumber, 'conflict', 'Registro ambíguo no cadastro', 'Registro'),
+          fail(kind, title, row.rowNumber, 'conflict', 'Registro ambíguo no cadastro', 'Registro'),
         );
         continue;
       }
@@ -360,7 +422,7 @@ function planSchools(
       matches = findSchoolsByName(next, name);
       if (matches.length > 1) {
         rows.push(
-          fail(title, row.rowNumber, 'conflict', 'Nome de escola ambíguo', 'Nome'),
+          fail(kind, title, row.rowNumber, 'conflict', 'Nome de escola ambíguo', 'Nome'),
         );
         continue;
       }
@@ -368,7 +430,7 @@ function planSchools(
 
     if (matches.length === 0) {
       if (!name) {
-        rows.push(fail(title, row.rowNumber, 'error', 'Nome é obrigatório', 'Nome'));
+        rows.push(fail(kind, title, row.rowNumber, 'error', 'Nome é obrigatório', 'Nome'));
         continue;
       }
       const created: IndexedSchool = {
@@ -384,21 +446,22 @@ function planSchools(
         longitude,
         _pending: true,
       };
-      next.push(created);
-      rows.push({
-        sheet: title,
-        rowNumber: row.rowNumber,
-        status: 'new',
-        create: {
-          name,
-          address,
-          principal,
-          phone,
-          registry,
-          latitude,
-          longitude,
-        },
-      });
+      if (!isIgnored(overlay, kind, row.rowNumber)) {
+        next.push(created);
+      }
+      rows.push(
+        ok(kind, title, row.rowNumber, 'new', {
+          create: {
+            name,
+            address,
+            principal,
+            phone,
+            registry,
+            latitude,
+            longitude,
+          },
+        }),
+      );
       continue;
     }
 
@@ -406,39 +469,54 @@ function planSchools(
     const changes: Record<string, unknown> = {};
     if (name) {
       changes.name = name;
-      existing.name = name;
     }
     if (address !== undefined && exactText(row.values.address)) {
       changes.address = address;
-      existing.address = address;
     }
     if (principal !== undefined && exactText(row.values.principal)) {
       changes.principal = principal;
-      existing.principal = principal;
     }
     if (phone) {
       changes.phone = phone;
-      existing.phone = phone;
     }
     if (registry) {
       changes.registry = registry;
-      existing.registry = registry;
     }
     if (latitude !== undefined) {
       changes.latitude = latitude;
-      existing.latitude = latitude;
     }
     if (longitude !== undefined) {
       changes.longitude = longitude;
-      existing.longitude = longitude;
     }
-    rows.push({
-      sheet: title,
-      rowNumber: row.rowNumber,
-      status: 'update',
-      entityId: existing.id,
-      changes,
-    });
+    if (!isIgnored(overlay, kind, row.rowNumber)) {
+      if (typeof changes.name === 'string') {
+        existing.name = changes.name;
+      }
+      if (typeof changes.address === 'string') {
+        existing.address = changes.address;
+      }
+      if (typeof changes.principal === 'string') {
+        existing.principal = changes.principal;
+      }
+      if (typeof changes.phone === 'string') {
+        existing.phone = changes.phone;
+      }
+      if (typeof changes.registry === 'string') {
+        existing.registry = changes.registry;
+      }
+      if (typeof changes.latitude === 'number') {
+        existing.latitude = changes.latitude;
+      }
+      if (typeof changes.longitude === 'number') {
+        existing.longitude = changes.longitude;
+      }
+    }
+    rows.push(
+      ok(kind, title, row.rowNumber, 'update', {
+        entityId: existing.id,
+        changes,
+      }),
+    );
   }
 
   return { rows, next };
@@ -448,7 +526,9 @@ function planRoutes(
   sheet: ParsedSheet | undefined,
   routes: IndexedRoute[],
   schools: IndexedSchool[],
+  overlay: ReviewOverlay,
 ): { rows: PlannedRow[]; next: IndexedRoute[] } {
+  const kind = 'routes' as const;
   const title = SHEET_TITLES.routes;
   if (!sheet) {
     return { rows: [], next: routes };
@@ -459,9 +539,13 @@ function planRoutes(
   const resolvedKeys: Array<string | undefined> = [];
 
   for (const row of sheet.rows) {
-    const schoolHit = resolveSchool(schools, row.values.school ?? '');
+    const schoolHit = resolveSchool(
+      schools,
+      row.values.school ?? '',
+      selectedRef(overlay, kind, row.rowNumber, 'school')?.id,
+    );
     const routeTitle = exactText(row.values.title);
-    if (schoolHit.school && routeTitle) {
+    if (!isIgnored(overlay, kind, row.rowNumber) && schoolHit.school && routeTitle) {
       const key = `${schoolHit.school.id}::${routeTitle}`;
       resolvedKeys.push(key);
       keyCounts.set(key, (keyCounts.get(key) ?? 0) + 1);
@@ -471,10 +555,15 @@ function planRoutes(
   }
 
   sheet.rows.forEach((row, index) => {
-    const schoolHit = resolveSchool(schools, row.values.school ?? '');
+    const schoolHit = resolveSchool(
+      schools,
+      row.values.school ?? '',
+      selectedRef(overlay, kind, row.rowNumber, 'school')?.id,
+    );
     if (!schoolHit.school) {
       rows.push(
         fail(
+          kind,
           title,
           row.rowNumber,
           schoolHit.status ?? 'missing_ref',
@@ -486,13 +575,13 @@ function planRoutes(
     }
     const routeTitle = exactText(row.values.title);
     if (!routeTitle) {
-      rows.push(fail(title, row.rowNumber, 'error', 'Título é obrigatório', 'Título'));
+      rows.push(fail(kind, title, row.rowNumber, 'error', 'Título é obrigatório', 'Título'));
       return;
     }
     const fileKey = resolvedKeys[index];
     if (fileKey && (keyCounts.get(fileKey) ?? 0) > 1) {
       rows.push(
-        fail(title, row.rowNumber, 'duplicate', 'Rota duplicada no arquivo', 'Título'),
+        fail(kind, title, row.rowNumber, 'duplicate', 'Rota duplicada no arquivo', 'Título'),
       );
       return;
     }
@@ -515,10 +604,15 @@ function planRoutes(
       ['Horário término volta', arrivalTimeVolta],
     ] as const;
 
-    const existingHit = resolveRoute(next, routeTitle, schoolHit.school.id);
+    const existingHit = resolveRoute(
+      next,
+      routeTitle,
+      schoolHit.school.id,
+      selectedRef(overlay, kind, row.rowNumber, 'title')?.id,
+    );
     if (existingHit.status === 'conflict') {
       rows.push(
-        fail(title, row.rowNumber, 'conflict', existingHit.message ?? '', 'Título'),
+        fail(kind, title, row.rowNumber, 'conflict', existingHit.message ?? '', 'Título'),
       );
       return;
     }
@@ -530,19 +624,19 @@ function planRoutes(
         ['Ponto de início', startPoint],
       ] as const) {
         if (!value) {
-          rows.push(fail(title, row.rowNumber, 'error', `${field} é obrigatório`, field));
+          rows.push(fail(kind, title, row.rowNumber, 'error', `${field} é obrigatório`, field));
           return;
         }
       }
       for (const [field, value] of times) {
         if (!value || !isValidHhMm(value)) {
-          rows.push(fail(title, row.rowNumber, 'error', 'Horário inválido', field));
+          rows.push(fail(kind, title, row.rowNumber, 'error', 'Horário inválido', field));
           return;
         }
       }
       const period = periodRaw ? parsePeriod(periodRaw) : undefined;
       if (!period) {
-        rows.push(fail(title, row.rowNumber, 'error', 'Período inválido', 'Período'));
+        rows.push(fail(kind, title, row.rowNumber, 'error', 'Período inválido', 'Período'));
         return;
       }
       const operationType = operationRaw
@@ -550,7 +644,7 @@ function planRoutes(
         : undefined;
       if (!operationType) {
         rows.push(
-          fail(title, row.rowNumber, 'error', 'Tipo de operação inválido', 'Tipo de operação'),
+          fail(kind, title, row.rowNumber, 'error', 'Tipo de operação inválido', 'Tipo de operação'),
         );
         return;
       }
@@ -573,42 +667,51 @@ function planRoutes(
         operationType,
         _pending: true,
       };
-      next.push(created);
-      rows.push({
-        sheet: title,
-        rowNumber: row.rowNumber,
-        status: 'new',
-        create: {
-          title: routeTitle,
-          responsible,
-          monitor,
-          startPoint,
-          boardingPoints: boardingPoints.map((point) => point.name),
-          schoolRef: row.values.school,
-          departureTimeIda,
-          arrivalTimeIda,
-          departureTimeVolta,
-          arrivalTimeVolta,
-          period,
-          operationType,
-        },
-      });
+      if (!isIgnored(overlay, kind, row.rowNumber)) {
+        next.push(created);
+      }
+      rows.push(
+        ok(kind, title, row.rowNumber, 'new', {
+          create: {
+            title: routeTitle,
+            responsible,
+            monitor,
+            startPoint,
+            boardingPoints: boardingPoints.map((point) => point.name),
+            schoolRef: schoolHit.school.registry ?? schoolHit.school.name,
+            resolvedSchoolId: schoolHit.school._pending ? undefined : schoolHit.school.id,
+            departureTimeIda,
+            arrivalTimeIda,
+            departureTimeVolta,
+            arrivalTimeVolta,
+            period,
+            operationType,
+          },
+        }),
+      );
       return;
     }
 
     const existing = existingHit.route;
+    const include = !isIgnored(overlay, kind, row.rowNumber);
     const changes: Record<string, unknown> = {};
     if (responsible) {
       changes.responsible = responsible;
-      existing.responsible = responsible;
+      if (include) {
+        existing.responsible = responsible;
+      }
     }
     if (monitor) {
       changes.monitor = monitor;
-      existing.monitor = monitor;
+      if (include) {
+        existing.monitor = monitor;
+      }
     }
     if (startPoint) {
       changes.startPoint = startPoint;
-      existing.startPoint = startPoint;
+      if (include) {
+        existing.startPoint = startPoint;
+      }
     }
     for (const [field, value, prop] of [
       ['Horário início ida', departureTimeIda, 'departureTimeIda'],
@@ -618,46 +721,54 @@ function planRoutes(
     ] as const) {
       if (value) {
         if (!isValidHhMm(value)) {
-          rows.push(fail(title, row.rowNumber, 'error', 'Horário inválido', field));
+          rows.push(fail(kind, title, row.rowNumber, 'error', 'Horário inválido', field));
           return;
         }
         changes[prop] = value;
-        (existing as unknown as Record<string, string>)[prop] = value;
+        if (include) {
+          (existing as unknown as Record<string, string>)[prop] = value;
+        }
       }
     }
     if (periodRaw) {
       const period = parsePeriod(periodRaw);
       if (!period) {
-        rows.push(fail(title, row.rowNumber, 'error', 'Período inválido', 'Período'));
+        rows.push(fail(kind, title, row.rowNumber, 'error', 'Período inválido', 'Período'));
         return;
       }
       changes.period = period;
-      existing.period = period;
+      if (include) {
+        existing.period = period;
+      }
     }
     if (operationRaw) {
       const operationType = parseOperationType(operationRaw);
       if (!operationType) {
         rows.push(
-          fail(title, row.rowNumber, 'error', 'Tipo de operação inválido', 'Tipo de operação'),
+          fail(kind, title, row.rowNumber, 'error', 'Tipo de operação inválido', 'Tipo de operação'),
         );
         return;
       }
       changes.operationType = operationType;
-      existing.operationType = operationType;
+      if (include) {
+        existing.operationType = operationType;
+      }
     }
     if (pointsRaw) {
       const names = parseBoardingPointNames(pointsRaw);
       changes.boardingPoints = names;
-      existing.boardingPoints = names.map((name) => createBoardingPoint(name));
+      if (include) {
+        existing.boardingPoints = names.map((name) => createBoardingPoint(name));
+      }
     }
-    changes.schoolRef = row.values.school;
-    rows.push({
-      sheet: title,
-      rowNumber: row.rowNumber,
-      status: 'update',
-      entityId: existing.id,
-      changes,
-    });
+    changes.schoolRef = schoolHit.school.registry ?? schoolHit.school.name;
+    changes.resolvedSchoolId = schoolHit.school._pending ? undefined : schoolHit.school.id;
+    rows.push(
+      ok(kind, title, row.rowNumber, 'update', {
+        entityId: existing.id,
+        changes,
+      }),
+    );
   });
 
   return { rows, next };
@@ -709,7 +820,9 @@ function planStudents(
   schools: IndexedSchool[],
   routes: IndexedRoute[],
   vehicles: IndexedVehicle[],
+  overlay: ReviewOverlay,
 ): PlannedRow[] {
+  const kind = 'students' as const;
   const title = SHEET_TITLES.students;
   if (!sheet) {
     return [];
@@ -719,6 +832,9 @@ function planStudents(
   const codeCounts = new Map<string, number>();
 
   for (const row of sheet.rows) {
+    if (isIgnored(overlay, kind, row.rowNumber)) {
+      continue;
+    }
     const code = businessCode(row.values.enrollmentCode);
     if (code) {
       codeCounts.set(code, (codeCounts.get(code) ?? 0) + 1);
@@ -730,6 +846,7 @@ function planStudents(
     if (code && (codeCounts.get(code) ?? 0) > 1) {
       rows.push(
         fail(
+          kind,
           title,
           row.rowNumber,
           'duplicate',
@@ -746,6 +863,7 @@ function planStudents(
       if (matches.length > 1) {
         rows.push(
           fail(
+            kind,
             title,
             row.rowNumber,
             'conflict',
@@ -764,7 +882,7 @@ function planStudents(
     if (ageRaw) {
       const parsed = parsePositiveInt(ageRaw);
       if (parsed == null) {
-        rows.push(fail(title, row.rowNumber, 'error', 'Idade inválida', 'Idade'));
+        rows.push(fail(kind, title, row.rowNumber, 'error', 'Idade inválida', 'Idade'));
         continue;
       }
       age = parsed;
@@ -781,7 +899,7 @@ function planStudents(
       }
       const phone = validPhone(raw);
       if (!phone) {
-        rows.push(fail(title, row.rowNumber, 'error', 'Telefone inválido', field));
+        rows.push(fail(kind, title, row.rowNumber, 'error', 'Telefone inválido', field));
         phoneError = true;
         break;
       }
@@ -792,10 +910,15 @@ function planStudents(
     }
     const grade = exactText(row.values.grade);
 
-    const schoolHit = resolveSchool(schools, row.values.school ?? '');
+    const schoolHit = resolveSchool(
+      schools,
+      row.values.school ?? '',
+      selectedRef(overlay, kind, row.rowNumber, 'school')?.id,
+    );
     if (!schoolHit.school) {
       rows.push(
         fail(
+          kind,
           title,
           row.rowNumber,
           schoolHit.status ?? 'missing_ref',
@@ -806,10 +929,16 @@ function planStudents(
       continue;
     }
     const routeTitle = exactText(row.values.route);
-    const routeHit = resolveRoute(routes, routeTitle ?? '', schoolHit.school.id);
+    const routeHit = resolveRoute(
+      routes,
+      routeTitle ?? '',
+      schoolHit.school.id,
+      selectedRef(overlay, kind, row.rowNumber, 'route')?.id,
+    );
     if (!routeHit.route) {
       rows.push(
         fail(
+          kind,
           title,
           row.rowNumber,
           routeHit.status ?? 'missing_ref',
@@ -819,10 +948,11 @@ function planStudents(
       );
       continue;
     }
-    const point = exactText(row.values.boardingPoint);
+    const selectedPoint = selectedRef(overlay, kind, row.rowNumber, 'boardingPoint');
+    const point = exactText(selectedPoint?.label) ?? exactText(row.values.boardingPoint);
     if (!point) {
       rows.push(
-        fail(title, row.rowNumber, 'error', 'Ponto de embarque é obrigatório', 'Ponto de embarque'),
+        fail(kind, title, row.rowNumber, 'error', 'Ponto de embarque é obrigatório', 'Ponto de embarque'),
       );
       continue;
     }
@@ -830,6 +960,7 @@ function planStudents(
     if (!pointExists) {
       rows.push(
         fail(
+          kind,
           title,
           row.rowNumber,
           'missing_ref',
@@ -839,10 +970,15 @@ function planStudents(
       );
       continue;
     }
-    const vehicleHit = resolveVehicle(vehicles, row.values.vehicle ?? '');
+    const vehicleHit = resolveVehicle(
+      vehicles,
+      row.values.vehicle ?? '',
+      selectedRef(overlay, kind, row.rowNumber, 'vehicle')?.id,
+    );
     if (!vehicleHit.vehicle) {
       rows.push(
         fail(
+          kind,
           title,
           row.rowNumber,
           vehicleHit.status ?? 'missing_ref',
@@ -855,52 +991,60 @@ function planStudents(
     const seatRaw = exactText(row.values.seatNumber);
     const seatNumber = seatRaw ? parsePositiveInt(seatRaw) : null;
     if (seatNumber == null) {
-      rows.push(fail(title, row.rowNumber, 'error', 'Assento inválido', 'Assento'));
+      rows.push(fail(kind, title, row.rowNumber, 'error', 'Assento inválido', 'Assento'));
       continue;
     }
     if (seatNumber > vehicleHit.vehicle.totalSeats) {
       rows.push(
-        fail(title, row.rowNumber, 'error', 'Assento fora da quantidade do veículo', 'Assento'),
+        fail(kind, title, row.rowNumber, 'error', 'Assento fora da quantidade do veículo', 'Assento'),
       );
       continue;
     }
-    if (seatTaken(vehicleHit.vehicle, seatNumber, existing?.id)) {
-      rows.push(fail(title, row.rowNumber, 'error', 'Assento ocupado', 'Assento'));
+    const include = !isIgnored(overlay, kind, row.rowNumber);
+    if (include && seatTaken(vehicleHit.vehicle, seatNumber, existing?.id)) {
+      rows.push(fail(kind, title, row.rowNumber, 'error', 'Assento ocupado', 'Assento'));
       continue;
     }
 
     if (!existing) {
       if (!name) {
-        rows.push(fail(title, row.rowNumber, 'error', 'Nome é obrigatório', 'Nome'));
+        rows.push(fail(kind, title, row.rowNumber, 'error', 'Nome é obrigatório', 'Nome'));
         continue;
       }
       const pendingId = `pending-student-${code ?? `${name}-${row.rowNumber}`}`;
-      occupySeat(vehicleHit.vehicle, seatNumber, pendingId);
-      rows.push({
-        sheet: title,
-        rowNumber: row.rowNumber,
-        status: 'new',
-        create: {
-          name,
-          age,
-          responsible,
-          contactPhones: phones,
-          grade,
-          enrollmentCode: code,
-          boardingPoint: point,
-          seatNumber,
-          schoolRef: row.values.school,
-          routeTitle,
-          vehiclePlate: vehicleHit.vehicle.plate,
-        },
-      });
+      if (include) {
+        occupySeat(vehicleHit.vehicle, seatNumber, pendingId);
+      }
+      rows.push(
+        ok(kind, title, row.rowNumber, 'new', {
+          create: {
+            name,
+            age,
+            responsible,
+            contactPhones: phones,
+            grade,
+            enrollmentCode: code,
+            boardingPoint: point,
+            seatNumber,
+            schoolRef: schoolHit.school.registry ?? schoolHit.school.name,
+            resolvedSchoolId: schoolHit.school._pending ? undefined : schoolHit.school.id,
+            routeTitle: routeHit.route.title,
+            resolvedRouteId: routeHit.route._pending ? undefined : routeHit.route.id,
+            vehiclePlate: vehicleHit.vehicle.plate,
+            resolvedVehicleId: vehicleHit.vehicle._pending ? undefined : vehicleHit.vehicle.id,
+          },
+        }),
+      );
       continue;
     }
 
     const changes: Record<string, unknown> = {
-      schoolRef: row.values.school,
-      routeTitle,
+      schoolRef: schoolHit.school.registry ?? schoolHit.school.name,
+      resolvedSchoolId: schoolHit.school._pending ? undefined : schoolHit.school.id,
+      routeTitle: routeHit.route.title,
+      resolvedRouteId: routeHit.route._pending ? undefined : routeHit.route.id,
       vehiclePlate: vehicleHit.vehicle.plate,
+      resolvedVehicleId: vehicleHit.vehicle._pending ? undefined : vehicleHit.vehicle.id,
       boardingPoint: point,
       seatNumber,
     };
@@ -919,75 +1063,94 @@ function planStudents(
     if (grade) {
       changes.grade = grade;
     }
-    occupySeat(vehicleHit.vehicle, seatNumber, existing.id, {
-      vehicleId: existing.vehicleId,
-      seatNumber: existing.seatNumber,
-    }, vehicles);
-    existing.schoolId = schoolHit.school.id;
-    existing.routeId = routeHit.route.id;
-    existing.vehicleId = vehicleHit.vehicle.id;
-    existing.seatNumber = seatNumber;
-    rows.push({
-      sheet: title,
-      rowNumber: row.rowNumber,
-      status: 'update',
-      entityId: existing.id,
-      changes,
-    });
+    if (include) {
+      occupySeat(vehicleHit.vehicle, seatNumber, existing.id, {
+        vehicleId: existing.vehicleId,
+        seatNumber: existing.seatNumber,
+      }, vehicles);
+      existing.schoolId = schoolHit.school.id;
+      existing.routeId = routeHit.route.id;
+      existing.vehicleId = vehicleHit.vehicle.id;
+      existing.seatNumber = seatNumber;
+    }
+    rows.push(
+      ok(kind, title, row.rowNumber, 'update', {
+        entityId: existing.id,
+        changes,
+      }),
+    );
   }
 
   return rows;
 }
 
-export function buildImportPlan(
+export function buildImportPlanFromParsed(
   snapshot: ImportSnapshot,
-  buffer: ArrayBuffer | Uint8Array,
+  parsed: ParsedWorkbook,
+  overlay: ReviewOverlay = emptyOverlay(),
 ): ImportPlan {
-  const parsed = parseWorkbookBuffer(buffer);
-  const sheetsFound = (Object.keys(parsed.sheets) as ExcelEntityKind[]).filter(
-    (kind) => parsed.sheets[kind],
+  const working = applyOverlayToWorkbook(parsed, overlay);
+  const sheetsFound = (Object.keys(working.sheets) as ExcelEntityKind[]).filter(
+    (kind) => working.sheets[kind],
   );
 
   const vehiclePlan = planVehicles(
-    parsed.sheets.vehicles,
+    working.sheets.vehicles,
     snapshot.vehicles.map((item) => ({
       ...item,
       seatsMap: item.seatsMap.map((seat) => ({ ...seat })),
     })),
+    overlay,
   );
   const schoolPlan = planSchools(
-    parsed.sheets.schools,
+    working.sheets.schools,
     snapshot.schools.map((item) => ({ ...item })),
+    overlay,
   );
   const routePlan = planRoutes(
-    parsed.sheets.routes,
+    working.sheets.routes,
     snapshot.routes.map((item) => ({
       ...item,
       boardingPoints: item.boardingPoints.map((point) => ({ ...point })),
     })),
     schoolPlan.next,
+    overlay,
   );
   const studentRows = planStudents(
-    parsed.sheets.students,
+    working.sheets.students,
     snapshot,
     schoolPlan.next,
     routePlan.next,
     vehiclePlan.next,
+    overlay,
   );
+
+  const vehicles = hydrateRows('vehicles', vehiclePlan.rows, parsed.sheets.vehicles, overlay);
+  const schools = hydrateRows('schools', schoolPlan.rows, parsed.sheets.schools, overlay);
+  const routes = hydrateRows('routes', routePlan.rows, parsed.sheets.routes, overlay);
+  const students = hydrateRows('students', studentRows, parsed.sheets.students, overlay);
 
   return {
     sheetsFound,
     ignoredSheets: parsed.ignoredSheets,
     headerErrors: parsed.headerErrors,
-    vehicles: vehiclePlan.rows,
-    schools: schoolPlan.rows,
-    routes: routePlan.rows,
-    students: studentRows,
+    vehicles,
+    schools,
+    routes,
+    students,
     totals: {
-      vehicles: tally(vehiclePlan.rows),
-      schools: tally(schoolPlan.rows),
-      routes: tally(routePlan.rows),
-      students: tally(studentRows),
+      vehicles: tally(vehicles),
+      schools: tally(schools),
+      routes: tally(routes),
+      students: tally(students),
     },
   };
+}
+
+export function buildImportPlan(
+  snapshot: ImportSnapshot,
+  buffer: ArrayBuffer | Uint8Array,
+  overlay: ReviewOverlay = emptyOverlay(),
+): ImportPlan {
+  return buildImportPlanFromParsed(snapshot, parseWorkbookBuffer(buffer), overlay);
 }

@@ -9,7 +9,14 @@ import { writeWorkbookBuffer } from './workbook';
 const XLSX_MIME =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-export async function pickExcelBuffer(): Promise<ArrayBuffer | undefined> {
+export type PickedExcel = {
+  buffer: ArrayBuffer;
+  bytes: Uint8Array;
+  fileName: string;
+  fileSize: number;
+};
+
+export async function pickExcelFile(): Promise<PickedExcel | undefined> {
   const result = await DocumentPicker.getDocumentAsync({
     type: [XLSX_MIME, 'application/vnd.ms-excel'],
     copyToCacheDirectory: true,
@@ -18,9 +25,24 @@ export async function pickExcelBuffer(): Promise<ArrayBuffer | undefined> {
   if (result.canceled || !result.assets[0]) {
     return undefined;
   }
-  const file = new File(result.assets[0].uri);
+  const asset = result.assets[0];
+  const file = new File(asset.uri);
   const bytes = await file.bytes();
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const buffer = bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  ) as ArrayBuffer;
+  return {
+    buffer,
+    bytes,
+    fileName: asset.name ?? 'arquivo.xlsx',
+    fileSize: asset.size ?? bytes.byteLength,
+  };
+}
+
+export async function pickExcelBuffer(): Promise<ArrayBuffer | undefined> {
+  const picked = await pickExcelFile();
+  return picked?.buffer;
 }
 
 export async function shareExcelSnapshot(
