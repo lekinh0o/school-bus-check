@@ -44,7 +44,7 @@
     "typescript": "~6.0.3"
   },
   "scripts": {
-    "test": "npx --yes tsx --test lib/geo.test.ts lib/optionalFields.test.ts lib/excel/excel.test.ts",
+    "test": "npx --yes tsx --test lib/geo.test.ts lib/optionalFields.test.ts lib/excel/excel.test.ts lib/excel/draft.test.ts lib/excel/controller.test.ts",
     "test:geo": "npx --yes tsx --test lib/geo.test.ts",
     "start": "expo start",
     "android": "expo start --android",

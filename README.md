@@ -45,7 +45,7 @@ GPS (`expo-location`), mapas, fotos e som de chegada entram só na execução. N
 3. `npx expo start`
 4. Abra no **Expo Go** (Android/iOS) ou emulador.
 
-Build interno de APK (EAS): perfil `preview` em `eas.json`.
+Build interno de APK: passo a passo com Gradle no Docker em [`docs/gerar-apk-gradle.md`](docs/gerar-apk-gradle.md). Alternativa EAS: perfil `preview` em `eas.json`.
 
 ## Onde está o código
 

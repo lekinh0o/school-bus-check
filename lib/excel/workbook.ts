@@ -16,6 +16,7 @@ import {
   formatOperationType,
   formatPeriod,
 } from './normalize';
+import { rowKey } from './types';
 import type { ImportSnapshot } from './types';
 
 export type ParsedSheet = {
@@ -29,6 +30,10 @@ export type ParsedWorkbook = {
   ignoredSheets: string[];
   headerErrors: Array<{ sheet: string; message: string }>;
 };
+
+export function sourceRowKey(kind: ExcelEntityKind, rowNumber: number): string {
+  return rowKey(kind, rowNumber);
+}
 
 function headerMap(
   headers: string[],

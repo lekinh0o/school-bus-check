@@ -26,7 +26,7 @@ import {
 import type { OperationType, RoutePeriod, Student } from '../../types';
 
 import { validPlate } from './normalize';
-import type { ImportPlan, PlannedRow } from './types';
+import { isEligibleRow, type ImportPlan, type PlannedRow } from './types';
 
 function newId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -41,7 +41,7 @@ function withoutId(ids: string[], id: string): string[] {
 }
 
 function isPersistable(row: PlannedRow): boolean {
-  return row.status === 'new' || row.status === 'update';
+  return isEligibleRow(row);
 }
 
 export type ExcelStoreState = {
@@ -54,7 +54,14 @@ export type ExcelStoreState = {
 function resolveSchoolId(
   state: ExcelStoreState,
   ref: string | undefined,
+  resolvedId?: string,
 ): string | undefined {
+  if (resolvedId) {
+    const match = selectAllSchools(state).find((item) => item.id === resolvedId);
+    if (match) {
+      return match.id;
+    }
+  }
   if (!ref) {
     return undefined;
   }
@@ -74,7 +81,14 @@ function resolveRouteId(
   state: ExcelStoreState,
   title: string | undefined,
   schoolId: string | undefined,
+  resolvedId?: string,
 ): string | undefined {
+  if (resolvedId) {
+    const match = selectAllRoutes(state).find((item) => item.id === resolvedId);
+    if (match) {
+      return match.id;
+    }
+  }
   if (!title || !schoolId) {
     return undefined;
   }
@@ -84,7 +98,17 @@ function resolveRouteId(
   return matches.length === 1 ? matches[0].id : undefined;
 }
 
-function resolveVehicleId(state: ExcelStoreState, plate: string | undefined): string | undefined {
+function resolveVehicleId(
+  state: ExcelStoreState,
+  plate: string | undefined,
+  resolvedId?: string,
+): string | undefined {
+  if (resolvedId) {
+    const match = selectAllVehicles(state).find((item) => item.id === resolvedId);
+    if (match) {
+      return match.id;
+    }
+  }
   const formatted = plate ? validPlate(plate) : undefined;
   if (!formatted) {
     return undefined;
@@ -93,11 +117,31 @@ function resolveVehicleId(state: ExcelStoreState, plate: string | undefined): st
   return matches.length === 1 ? matches[0].id : undefined;
 }
 
+export type ApplySummary = {
+  processed: number;
+  created: number;
+  updated: number;
+  imported: number;
+  skipped: number;
+};
+
 export function applyImportPlan(
   dispatch: Dispatch,
   getState: () => ExcelStoreState,
   plan: ImportPlan,
-) {
+): ApplySummary {
+  const persistable = [
+    ...plan.vehicles,
+    ...plan.schools,
+    ...plan.routes,
+    ...plan.students,
+  ].filter(isPersistable);
+  const skipped =
+    plan.vehicles.length +
+    plan.schools.length +
+    plan.routes.length +
+    plan.students.length -
+    persistable.length;
   for (const row of plan.vehicles.filter(isPersistable)) {
     if (row.status === 'new' && row.create) {
       const totalSeats = Number(row.create.totalSeats);
@@ -161,7 +205,11 @@ export function applyImportPlan(
       continue;
     }
     const state = getState();
-    const schoolId = resolveSchoolId(state, String(payload.schoolRef ?? ''));
+    const schoolId = resolveSchoolId(
+      state,
+      String(payload.schoolRef ?? ''),
+      payload.resolvedSchoolId as string | undefined,
+    );
     if (!schoolId) {
       continue;
     }
@@ -264,13 +312,22 @@ export function applyImportPlan(
       continue;
     }
     const state = getState();
-    const schoolId = resolveSchoolId(state, String(payload.schoolRef ?? ''));
+    const schoolId = resolveSchoolId(
+      state,
+      String(payload.schoolRef ?? ''),
+      payload.resolvedSchoolId as string | undefined,
+    );
     const routeId = resolveRouteId(
       state,
       payload.routeTitle as string | undefined,
       schoolId,
+      payload.resolvedRouteId as string | undefined,
     );
-    const vehicleId = resolveVehicleId(state, payload.vehiclePlate as string | undefined);
+    const vehicleId = resolveVehicleId(
+      state,
+      payload.vehiclePlate as string | undefined,
+      payload.resolvedVehicleId as string | undefined,
+    );
     const seatNumber = Number(payload.seatNumber);
     const boardingPoint = String(payload.boardingPoint ?? '');
     if (!schoolId || !routeId || !vehicleId || !boardingPoint || !seatNumber) {
@@ -370,4 +427,14 @@ export function applyImportPlan(
       }
     }
   }
+
+  const created = persistable.filter((row) => row.status === 'new').length;
+  const updated = persistable.filter((row) => row.status === 'update').length;
+  return {
+    processed: persistable.length,
+    created,
+    updated,
+    imported: persistable.length,
+    skipped,
+  };
 }

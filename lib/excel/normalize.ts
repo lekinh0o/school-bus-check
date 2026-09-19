@@ -133,7 +133,7 @@ export function parseBoardingPointNames(value: string): string[] {
     return [];
   }
   const names: string[] = [];
-  for (const part of raw.split('|')) {
+  for (const part of raw.split(/[|;]/)) {
     const name = exactText(part);
     if (name && !names.includes(name)) {
       names.push(name);
