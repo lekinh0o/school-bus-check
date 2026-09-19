@@ -74,6 +74,7 @@ const filled: ImportSnapshot = {
 };
 
 function testStore(snapshot: ImportSnapshot) {
+  const copy = structuredClone(snapshot);
   const store = configureStore({
     reducer: combineReducers({
       vehicles: vehicleReducer,
@@ -82,16 +83,16 @@ function testStore(snapshot: ImportSnapshot) {
       students: studentReducer,
     }),
   });
-  for (const item of snapshot.vehicles) {
+  for (const item of copy.vehicles) {
     store.dispatch(addVehicle(item));
   }
-  for (const item of snapshot.schools) {
+  for (const item of copy.schools) {
     store.dispatch(addSchool(item));
   }
-  for (const item of snapshot.routes) {
+  for (const item of copy.routes) {
     store.dispatch(addRoute(item));
   }
-  for (const item of snapshot.students) {
+  for (const item of copy.students) {
     store.dispatch(addStudent(item));
   }
   return store;
@@ -305,5 +306,23 @@ describe('session source immutability', () => {
     );
     assert.equal(session.source.sheets.students?.rows[0]?.values.name, original);
     assert.equal(session.plan.students[0]?.effectiveValues.name, 'Outro');
+  });
+});
+
+describe('unreadable workbook', () => {
+  it('clears busy and surfaces the parser failure from startFromFile', async () => {
+    const draft = new MemoryDraftStore();
+    const controller = new ImportReviewController(draft);
+    await assert.rejects(
+      () =>
+        controller.startFromFile(
+          filled,
+          new Uint8Array([0, 1, 2, 3, 4]),
+          'broken.bin',
+          5,
+        ),
+    );
+    assert.equal(controller.getState().busy, false);
+    assert.equal(controller.getState().session, null);
   });
 });
