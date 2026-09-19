@@ -10,7 +10,10 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["waze", "comgooglemaps"]
+        "LSApplicationQueriesSchemes": [
+          "waze",
+          "comgooglemaps"
+        ]
       }
     },
     "android": {
@@ -58,7 +61,8 @@
           "icon": "./assets/images/icon.png",
           "color": "#0F6B4D"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

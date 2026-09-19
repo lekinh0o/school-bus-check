@@ -1,10 +1,11 @@
 import { Feather } from '@expo/vector-icons';
 import { type Href, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { VehicleListModal } from '@/components/VehicleListModal';
+import { CadastroExcelPanel } from '@/components/CadastroExcelPanel';
 import { cardShadow, palette } from '@/constants/Colors';
 import { selectAllRoutes } from '@/store/routeSlice';
 import { selectAllSchools } from '@/store/schoolSlice';
@@ -82,11 +83,15 @@ export default function CadastrosScreen() {
   }
 
   return (
-    <View className="flex-1 bg-background px-4" style={{ paddingTop: insets.top + 8 }}>
+    <ScrollView
+      className="flex-1 bg-background px-4"
+      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 24 }}>
       <Text className="text-[30px] font-bold text-ink">Cadastros</Text>
       <Text className="mt-2 text-[15px] text-ink-muted">
         Gerencie os dados mestres do transporte escolar.
       </Text>
+
+      <CadastroExcelPanel />
 
       <View className="mt-6 flex-row flex-wrap justify-between">
         {MENU.map((item) => {
@@ -123,6 +128,6 @@ export default function CadastrosScreen() {
         onClose={() => setVehicleModalVisible(false)}
         onSelect={() => setVehicleModalVisible(false)}
       />
-    </View>
+    </ScrollView>
   );
 }
