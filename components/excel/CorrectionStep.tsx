@@ -28,7 +28,7 @@ import {
   vehicleOptions,
   type RefOption,
 } from '@/lib/excel/reviewModel';
-import type { ImportCorrection, ImportSnapshot, PlannedRow } from '@/lib/excel/types';
+import type { ImportCorrection, ImportPlan, ImportSnapshot, PlannedRow } from '@/lib/excel/types';
 import { isEligibleRow } from '@/lib/excel/types';
 
 import {
@@ -63,6 +63,7 @@ function isReferenceField(key: string): boolean {
 export function CorrectionStep({
   row,
   snapshot,
+  plan,
   paddingBottom,
   onSave,
   onBack,
@@ -71,6 +72,7 @@ export function CorrectionStep({
 }: {
   row: PlannedRow;
   snapshot: ImportSnapshot;
+  plan?: ImportPlan;
   paddingBottom: number;
   onSave: (corrections: ImportCorrection[]) => void;
   onBack: () => void;
@@ -86,17 +88,27 @@ export function CorrectionStep({
     setValues(row.effectiveValues);
   }, [row.rowKey, row.effectiveValues]);
 
-  const schoolId = refs.school?.id ?? effectiveSchoolId(row);
-  const routeId = refs.route?.id ?? effectiveRouteId(row);
-  const schools = useMemo(() => schoolOptions(snapshot), [snapshot]);
+  const selectedSchool = refs.school;
+  const schoolId = selectedSchool?.source === 'persisted' ? selectedSchool.id : effectiveSchoolId(row);
+  const schoolLabel =
+    selectedSchool?.matchValue ||
+    selectedSchool?.label ||
+    row.effectiveValues.school;
+  const selectedRoute = refs.route;
+  const routeId = selectedRoute?.source === 'persisted' ? selectedRoute.id : effectiveRouteId(row);
+  const routeLabel =
+    selectedRoute?.matchValue ||
+    selectedRoute?.label ||
+    row.effectiveValues.route;
+  const schools = useMemo(() => schoolOptions(snapshot, plan), [snapshot, plan]);
   const routes = useMemo(
-    () => routeOptions(snapshot, schoolId),
-    [snapshot, schoolId],
+    () => routeOptions(snapshot, schoolId ?? selectedSchool?.id, plan, schoolLabel),
+    [snapshot, schoolId, selectedSchool?.id, plan, schoolLabel],
   );
-  const vehicles = useMemo(() => vehicleOptions(snapshot), [snapshot]);
+  const vehicles = useMemo(() => vehicleOptions(snapshot, plan), [snapshot, plan]);
   const points = useMemo(
-    () => boardingPointOptions(snapshot, routeId),
-    [snapshot, routeId],
+    () => boardingPointOptions(snapshot, routeId ?? selectedRoute?.id, plan, routeLabel),
+    [snapshot, routeId, selectedRoute?.id, plan, routeLabel],
   );
 
   function optionsFor(key: string): RefOption[] {
@@ -126,9 +138,10 @@ export function CorrectionStep({
         corrections.push({
           field: column.key,
           originalValue: original,
-          correctedValue: selected.label,
+          correctedValue: selected.matchValue ?? selected.label,
           selectedEntityKind: selected.kind,
-          selectedEntityId: selected.id,
+          selectedEntityId:
+            selected.source === 'persisted' ? selected.id : undefined,
           selectedEntityLabel: selected.label,
           reason: 'selected_reference',
           correctedAt: now,
@@ -203,8 +216,8 @@ export function CorrectionStep({
                 <View className="mt-2">
                   {options.length === 0 ? (
                     <Text className="text-[13px] text-ink-muted">
-                      Nenhuma opção persistida compatível. A central não cria{' '}
-                      {column.label.toLowerCase()} automaticamente.
+                      Nenhuma escola, rota, veículo ou ponto compatível neste arquivo ou nos
+                      cadastros. A central não cria {column.label.toLowerCase()} automaticamente.
                     </Text>
                   ) : (
                     options.map((option) => {
@@ -213,8 +226,21 @@ export function CorrectionStep({
                         <Pressable
                           key={option.id}
                           onPress={() => {
-                            setRefs((prev) => ({ ...prev, [column.key]: option }));
-                            setValues((prev) => ({ ...prev, [column.key]: option.label }));
+                            setRefs((prev) => {
+                              const next = { ...prev, [column.key]: option };
+                              if (column.key === 'school') {
+                                delete next.route;
+                                delete next.boardingPoint;
+                              }
+                              if (column.key === 'route') {
+                                delete next.boardingPoint;
+                              }
+                              return next;
+                            });
+                            setValues((prev) => ({
+                              ...prev,
+                              [column.key]: option.matchValue ?? option.label,
+                            }));
                           }}
                           accessibilityRole="button"
                           accessibilityLabel={`Selecionar ${option.label}`}

@@ -6,11 +6,12 @@ import * as XLSX from 'xlsx';
 
 import { applyImportPlan } from './apply';
 import { foldHeader, matchSheetKind } from './contract';
-import { businessCode } from './normalize';
+import { parseBoardingPointNames, businessCode } from './normalize';
 import { buildImportPlan } from './plan';
 import type { ImportSnapshot } from './types';
 import { parseWorkbookBuffer, writeWorkbookBuffer } from './workbook';
 import { createSession, removeRowCorrection, saveRowCorrections, setRowDecision } from './session';
+import { boardingPointOptions, routeOptions, vehicleOptions } from './reviewModel';
 import routeReducer, { addRoute } from '../../store/routeSlice';
 import schoolReducer, { addSchool, selectAllSchools } from '../../store/schoolSlice';
 import studentReducer, { addStudent, selectAllStudents } from '../../store/studentSlice';
@@ -113,6 +114,11 @@ describe('normalize', () => {
   it('keeps leading zeros on enrollment codes', () => {
     assert.equal(businessCode('0123'), '0123');
     assert.equal(businessCode(' 0123 '), '0123');
+  });
+
+  it('splits boarding points on pipe or semicolon', () => {
+    assert.deepEqual(parseBoardingPointNames('Porta | Praça'), ['Porta', 'Praça']);
+    assert.deepEqual(parseBoardingPointNames('Porta; Praça'), ['Porta', 'Praça']);
   });
 });
 
@@ -711,5 +717,78 @@ describe('review overlay', () => {
     ]);
     assert.equal(session.plan.students[1]?.status, 'duplicate');
     assert.equal(session.source.sheets.students?.rows[1]?.values.enrollmentCode, '0002');
+  });
+
+  it('resolves a student boarding point from a new route in the same file', () => {
+    const buffer = bufferFromTables({
+      Veículos: [
+        ['Placa', 'Responsável', 'Quantidade de assentos'],
+        ['ABC1D23', 'João', '10'],
+      ],
+      Escolas: [['Nome', 'Registro'], ['Escola Centro', 'ESC-01']],
+      Rotas: [
+        [
+          'Título',
+          'Escola',
+          'Responsável',
+          'Monitor',
+          'Ponto de início',
+          'Horário início ida',
+          'Horário término ida',
+          'Horário início volta',
+          'Horário término volta',
+          'Período',
+          'Tipo de operação',
+          'Pontos de embarque',
+        ],
+        [
+          'Linha Centro',
+          'ESC-01',
+          'Ana',
+          'Bia',
+          'Praça',
+          '06:00',
+          '07:00',
+          '11:00',
+          '12:00',
+          'Manhã',
+          'Ida e Volta',
+          'Porta; Praça',
+        ],
+      ],
+      Alunos: [
+        [
+          'Nome',
+          'Escola',
+          'Rota',
+          'Ponto de embarque',
+          'Veículo',
+          'Assento',
+        ],
+        ['Lia', 'ESC-01', 'Linha Centro', 'Porta', 'ABC1D23', '1'],
+      ],
+    });
+    const plan = buildImportPlan(
+      { vehicles: [], schools: [], routes: [], students: [] },
+      buffer,
+    );
+    assert.equal(plan.students[0]?.status, 'new');
+    const vehicles = vehicleOptions({ vehicles: [], schools: [], routes: [], students: [] }, plan);
+    const routes = routeOptions(
+      { vehicles: [], schools: [], routes: [], students: [] },
+      undefined,
+      plan,
+      'ESC-01',
+    );
+    const points = boardingPointOptions(
+      { vehicles: [], schools: [], routes: [], students: [] },
+      undefined,
+      plan,
+      'Linha Centro',
+    );
+    assert.ok(vehicles.some((item) => item.label === 'ABC1D23' && item.source === 'planned'));
+    assert.ok(routes.some((item) => item.label === 'Linha Centro' && item.source === 'planned'));
+    assert.ok(points.some((item) => item.label === 'Porta' && item.source === 'planned'));
+    assert.ok(points.some((item) => item.label === 'Praça'));
   });
 });

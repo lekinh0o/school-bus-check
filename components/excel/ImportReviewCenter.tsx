@@ -120,6 +120,7 @@ export function ImportReviewCenter({
           <CorrectionStep
             row={selected}
             snapshot={snapshot}
+            plan={session.plan}
             paddingBottom={insets.bottom}
             onSave={(corrections) =>
               void controller.saveCorrections(
