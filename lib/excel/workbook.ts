@@ -65,8 +65,34 @@ function headerMap(
   return mapped;
 }
 
+function workbookBytes(buffer: ArrayBuffer | Uint8Array): Uint8Array {
+  return buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+}
+
+function looksLikeSpreadsheet(bytes: Uint8Array): boolean {
+  if (
+    bytes.length >= 4 &&
+    bytes[0] === 0xd0 &&
+    bytes[1] === 0xcf &&
+    bytes[2] === 0x11 &&
+    bytes[3] === 0xe0
+  ) {
+    return true;
+  }
+  return bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+}
+
 export function parseWorkbookBuffer(buffer: ArrayBuffer | Uint8Array): ParsedWorkbook {
-  const workbook = XLSX.read(buffer, { type: 'array', raw: false });
+  const bytes = workbookBytes(buffer);
+  if (!looksLikeSpreadsheet(bytes)) {
+    throw new Error('Arquivo Excel ilegível');
+  }
+  let workbook: XLSX.WorkBook;
+  try {
+    workbook = XLSX.read(bytes, { type: 'array', raw: false });
+  } catch (error) {
+    throw error instanceof Error ? error : new Error('Arquivo Excel ilegível');
+  }
   const ignoredSheets: string[] = [];
   const headerErrors: ParsedWorkbook['headerErrors'] = [];
   const sheets: ParsedWorkbook['sheets'] = {};

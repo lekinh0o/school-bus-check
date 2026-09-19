@@ -138,16 +138,21 @@ export class ImportReviewController {
     fileSize: number,
   ): Promise<void> {
     this.assign({ ...this.view, busy: true });
-    const parsed = parseWorkbookBuffer(source);
-    const session = createSession(snapshot, parsed, { fileName, fileSize });
-    await this.draft.create(source, fileName, fileSize, journalFromOverlay(session.overlay));
-    this.assign({
-      ...initialView(),
-      session,
-      step: 'analysis',
-      saveStatus: 'saved',
-      busy: false,
-    });
+    try {
+      const parsed = parseWorkbookBuffer(source);
+      const session = createSession(snapshot, parsed, { fileName, fileSize });
+      await this.draft.create(source, fileName, fileSize, journalFromOverlay(session.overlay));
+      this.assign({
+        ...initialView(),
+        session,
+        step: 'analysis',
+        saveStatus: 'saved',
+        busy: false,
+      });
+    } catch (error) {
+      this.assign({ ...this.view, busy: false });
+      throw error;
+    }
   }
 
   async resume(snapshot: ImportSnapshot): Promise<void> {
